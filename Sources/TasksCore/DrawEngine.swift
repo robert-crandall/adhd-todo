@@ -60,6 +60,11 @@ public enum DrawEngine {
         season: TaskSeason,
         todayISO: String
     ) -> (quick: TaskItem?, medium: TaskItem?, ids: WeeklyDrawIds) {
+        let currentWeek = TasksDateHelper.isoWeekKey(for: todayISO)
+        let activeExisting = (existingDraw.weekKey == nil || existingDraw.weekKey == currentWeek)
+            ? existingDraw
+            : WeeklyDrawIds(weekKey: currentWeek)
+
         let lifeEligible = sortForDraw(
             tasks.filter {
                 $0.pool == .life && isEligible($0, month: month, season: season, todayISO: todayISO, respectCooldown: true)
@@ -67,17 +72,17 @@ public enum DrawEngine {
             month: month
         )
 
-        let existingQuick = lifeEligible.first { $0.id == existingDraw.quickId }
+        let existingQuick = lifeEligible.first { $0.id == activeExisting.quickId }
         let quick = existingQuick
             ?? lifeEligible.first { $0.effort == .quick }
             ?? lifeEligible.first
 
-        let existingMedium = lifeEligible.first { $0.id == existingDraw.mediumId && $0.id != quick?.id }
+        let existingMedium = lifeEligible.first { $0.id == activeExisting.mediumId && $0.id != quick?.id }
         let medium = existingMedium
             ?? lifeEligible.first { $0.id != quick?.id && ($0.effort == .medium || $0.effort == .big) }
             ?? lifeEligible.first { $0.id != quick?.id }
 
-        let ids = WeeklyDrawIds(quickId: quick?.id, mediumId: medium?.id)
+        let ids = WeeklyDrawIds(quickId: quick?.id, mediumId: medium?.id, weekKey: currentWeek)
         return (quick: quick, medium: medium, ids: ids)
     }
 

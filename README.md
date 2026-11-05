@@ -1,4 +1,4 @@
-# Tasks — No-Guilt ADHD Task Picker (macOS, iOS, watchOS & MCP)
+# Tasks — No-Guilt ADHD Task Picker (macOS & MCP)
 
 **Tasks** is a native Swift / SwiftUI ADHD-friendly task dealer designed around executive-function ergonomics:
 
@@ -7,10 +7,10 @@
   - **Computer / Work (`Computer Pool`):** Holds `Computer` tasks plus externally pushed **GitHub**, **Gmail**, **Copilot CLI**, and **Claude Desktop** MCP tasks (capped at `<= 3` active cards, with a 1-click **On Duty / Off Duty** toggle).
 - **Calm Homepage (`List` / `Cards` / `Zen Deck`):**
   - **List View (Default):** Shows only the task title plus **`Done`** and **`Not Now`**.
-  - **Expand on Click / Card View:** Reveals **Notes from Yourself** (timestamped notes from previous rolls + an inline input to leave a note for future-you), **`Focus Timer`**, **`Break it down`** (powered by **GitHub Copilot SDK** with offline fallback), and hidable tags.
+  - **Expand on Click / Card View:** Reveals **Notes from Yourself** (timestamped notes from previous rolls + an inline input to leave a note for future-you), **`Focus Timer`**, **`Break it down`** (powered by **GitHub Copilot SDK** with offline fallback; set `TASKS_USE_LIVE_COPILOT_CLI=1` to invoke the live `copilot` CLI), and hidable tags.
   - **Zen Deck:** Single-card focus view (`1 of N`) when even a 2-item list feels like too much.
-- **Shared App Group + CloudKit Sync (`TasksCore`):**
-  - Shared across macOS, iOS, watchOS, and the `tasks-mcp` server via App Group `7492ZAHAJV.group.org.robertcrandall.Tasks` and CloudKit container `iCloud.org.robertcrandall.Tasks`.
+- **Shared Storage and Sync Library (`TasksCore`):**
+  - Used by the macOS app and `tasks-mcp`, with App Group storage (`7492ZAHAJV.group.org.robertcrandall.Tasks`) and CloudKit integration (`iCloud.org.robertcrandall.Tasks`). `TasksCore` also compiles for iOS and watchOS so companion app targets can share the same persistence and draw engine.
 
 ## Build & Sign `Tasks.app` (Team `7492ZAHAJV`)
 

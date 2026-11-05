@@ -127,8 +127,6 @@ public struct MCPServerHandler: Sendable {
         let name = params["name"] as? String ?? ""
         let args = params["arguments"] as? [String: Any] ?? [:]
 
-        var state = TasksStore.loadState(from: storageURL) ?? TasksState()
-
         switch name {
         case "add_task":
             let title = (args["title"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -143,23 +141,29 @@ public struct MCPServerHandler: Sendable {
             let source = args["source"] as? String ?? (context == .computer ? "Copilot MCP" : nil)
             let externalRef = args["externalRef"] as? String
 
-            let item = TaskItem(
-                id: "t-mcp-\(Int(Date().timeIntervalSince1970 * 1000))-\(Int.random(in: 100...999))",
-                title: title,
-                context: context,
-                effort: effort,
-                notes: notes,
-                previousNotes: notes.isEmpty ? [] : [TaskNote(date: "Via MCP", text: notes)],
-                lastSurfacedAt: state.todayISO,
-                source: source,
-                externalRef: externalRef
-            )
-            state.tasks.insert(item, at: 0)
-            TasksStore.saveState(state, to: storageURL)
-            TasksStore.postDarwinNotification()
-            return textResult("Added '\(item.title)' (\(item.effort.rawValue)) to \(item.pool.rawValue) [id: \(item.id)]")
+            do {
+                let item = try TasksStore.mutateStateOnDisk(at: storageURL) { state in
+                    let created = TaskItem(
+                        id: "t-mcp-\(Int(Date().timeIntervalSince1970 * 1000))-\(Int.random(in: 100...999))",
+                        title: title,
+                        context: context,
+                        effort: effort,
+                        notes: notes,
+                        previousNotes: notes.isEmpty ? [] : [TaskNote(date: "Via MCP", text: notes)],
+                        lastSurfacedAt: state.todayISO,
+                        source: source,
+                        externalRef: externalRef
+                    )
+                    state.tasks.insert(created, at: 0)
+                    return created
+                }
+                return textResult("Added '\(item.title)' (\(item.effort.rawValue)) to \(item.pool.rawValue) [id: \(item.id)]")
+            } catch {
+                return textResult("Failed to persist task: \(error.localizedDescription)", isError: true)
+            }
 
         case "list_drawn_tasks":
+            let state = TasksStore.loadState(from: storageURL) ?? TasksState()
             let life = DrawEngine.computeLifeDraw(
                 tasks: state.tasks,
                 existingDraw: state.weeklyDraw,
@@ -190,58 +194,80 @@ public struct MCPServerHandler: Sendable {
 
         case "complete_task":
             let query = (args["query"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            guard let idx = state.tasks.firstIndex(where: {
-                $0.status == .active && !$0.isDeleted && ($0.id.lowercased() == query || $0.title.lowercased().contains(query))
-            }) else {
-                return textResult("No active task matching '\(query)' found.", isError: true)
+            do {
+                let completed: (title: String, id: String)? = try TasksStore.mutateStateOnDisk(at: storageURL) { state in
+                    guard let idx = state.tasks.firstIndex(where: {
+                        $0.status == .active && !$0.isDeleted && ($0.id.lowercased() == query || $0.title.lowercased().contains(query))
+                    }) else {
+                        return nil
+                    }
+                    let title = state.tasks[idx].title
+                    let id = state.tasks[idx].id
+                    state.tasks[idx].status = .done
+                    state.tasks[idx].updatedAt = Date()
+                    if state.weeklyDraw.quickId == id { state.weeklyDraw.quickId = nil }
+                    if state.weeklyDraw.mediumId == id { state.weeklyDraw.mediumId = nil }
+                    return (title, id)
+                }
+                guard let completed else {
+                    return textResult("No active task matching '\(query)' found.", isError: true)
+                }
+                return textResult("Completed '\(completed.title)' [id: \(completed.id)]")
+            } catch {
+                return textResult("Failed to complete task: \(error.localizedDescription)", isError: true)
             }
-            let title = state.tasks[idx].title
-            let id = state.tasks[idx].id
-            state.tasks[idx].status = .done
-            state.tasks[idx].updatedAt = Date()
-            if state.weeklyDraw.quickId == id { state.weeklyDraw.quickId = nil }
-            if state.weeklyDraw.mediumId == id { state.weeklyDraw.mediumId = nil }
-            TasksStore.saveState(state, to: storageURL)
-            TasksStore.postDarwinNotification()
-            return textResult("Completed '\(title)' [id: \(id)]")
 
         case "add_self_note":
             let query = (args["query"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             let note = (args["note"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !query.isEmpty, !note.isEmpty,
-                  let idx = state.tasks.firstIndex(where: {
-                      !$0.isDeleted && ($0.id.lowercased() == query || $0.title.lowercased().contains(query))
-                  }) else {
+            guard !query.isEmpty, !note.isEmpty else {
                 return textResult("Task matching '\(query)' not found.", isError: true)
             }
-            state.tasks[idx].previousNotes.insert(TaskNote(date: "Via MCP", text: note), at: 0)
-            state.tasks[idx].updatedAt = Date()
-            TasksStore.saveState(state, to: storageURL)
-            TasksStore.postDarwinNotification()
-            return textResult("Added self-note to '\(state.tasks[idx].title)'")
+            do {
+                let matchedTitle: String? = try TasksStore.mutateStateOnDisk(at: storageURL) { state in
+                    guard let idx = state.tasks.firstIndex(where: {
+                        !$0.isDeleted && ($0.id.lowercased() == query || $0.title.lowercased().contains(query))
+                    }) else {
+                        return nil
+                    }
+                    state.tasks[idx].previousNotes.insert(TaskNote(date: "Via MCP", text: note), at: 0)
+                    state.tasks[idx].updatedAt = Date()
+                    return state.tasks[idx].title
+                }
+                guard let matchedTitle else {
+                    return textResult("Task matching '\(query)' not found.", isError: true)
+                }
+                return textResult("Added self-note to '\(matchedTitle)'")
+            } catch {
+                return textResult("Failed to save note: \(error.localizedDescription)", isError: true)
+            }
 
         case "brain_dump":
             let text = args["text"] as? String ?? ""
             let drafts = CopilotSDKBridge.heuristicParseBrainDump(text)
-            for d in drafts {
-                state.tasks.insert(
-                    TaskItem(
-                        id: "t-mcp-bd-\(UUID().uuidString.prefix(8))",
-                        title: d.title,
-                        context: d.context,
-                        effort: d.effort,
-                        season: d.season,
-                        anchorMonth: d.anchorMonth,
-                        notes: d.notes,
-                        lastSurfacedAt: state.todayISO,
-                        source: d.context == .computer ? "Copilot MCP" : nil
-                    ),
-                    at: 0
-                )
+            do {
+                try TasksStore.mutateStateOnDisk(at: storageURL) { state in
+                    for d in drafts {
+                        state.tasks.insert(
+                            TaskItem(
+                                id: "t-mcp-bd-\(UUID().uuidString.prefix(8))",
+                                title: d.title,
+                                context: d.context,
+                                effort: d.effort,
+                                season: d.season,
+                                anchorMonth: d.anchorMonth,
+                                notes: d.notes,
+                                lastSurfacedAt: state.todayISO,
+                                source: d.context == .computer ? "Copilot MCP" : nil
+                            ),
+                            at: 0
+                        )
+                    }
+                }
+                return textResult("Parsed and added \(drafts.count) tasks from brain dump.")
+            } catch {
+                return textResult("Failed to persist brain dump: \(error.localizedDescription)", isError: true)
             }
-            TasksStore.saveState(state, to: storageURL)
-            TasksStore.postDarwinNotification()
-            return textResult("Parsed and added \(drafts.count) tasks from brain dump.")
 
         default:
             return textResult("Unknown tool: \(name)", isError: true)

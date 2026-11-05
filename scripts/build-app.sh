@@ -61,11 +61,19 @@ codesign --force --sign "$SIGN_IDENTITY" \
   --timestamp=none \
   "$APP_BUNDLE/Contents/MacOS/tasks-mcp"
 
-# Sign the app bundle with Team ID & App Group entitlements
-TEMP_ENTITLEMENTS="$(mktemp -t tasks-entitlements.XXXXXX.plist)"
-trap 'rm -f "$TEMP_ENTITLEMENTS"' EXIT
+# If a macOS CloudKit provisioning profile is supplied, embed it and sign with full CloudKit entitlements;
+# otherwise sign with Team-prefixed App Group entitlements so amfid allows local execution without a profile.
+if [[ -n "${PROVISIONING_PROFILE:-}" && -f "${PROVISIONING_PROFILE}" ]]; then
+  cp "${PROVISIONING_PROFILE}" "$APP_BUNDLE/Contents/embedded.provisionprofile"
+  codesign --force --sign "$SIGN_IDENTITY" \
+    --entitlements "$ROOT_DIR/Tasks.entitlements" \
+    --timestamp=none \
+    "$APP_BUNDLE"
+else
+  TEMP_ENTITLEMENTS="$(mktemp -t tasks-entitlements.XXXXXX.plist)"
+  trap 'rm -f "$TEMP_ENTITLEMENTS"' EXIT
 
-cat > "$TEMP_ENTITLEMENTS" <<EOF
+  cat > "$TEMP_ENTITLEMENTS" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -80,10 +88,11 @@ cat > "$TEMP_ENTITLEMENTS" <<EOF
 </plist>
 EOF
 
-codesign --force --sign "$SIGN_IDENTITY" \
-  --entitlements "$TEMP_ENTITLEMENTS" \
-  --timestamp=none \
-  "$APP_BUNDLE"
+  codesign --force --sign "$SIGN_IDENTITY" \
+    --entitlements "$TEMP_ENTITLEMENTS" \
+    --timestamp=none \
+    "$APP_BUNDLE"
+fi
 
 codesign --verify --verbose=2 "$APP_BUNDLE"
 echo "==> Built and signed: $APP_BUNDLE"

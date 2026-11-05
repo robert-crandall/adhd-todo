@@ -8,8 +8,6 @@ struct TasksMacApp: App {
     @State private var selectedSection: SidebarSection = .lifeDraw
     @State private var showingQuickCapture = false
 
-    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-
     var body: some Scene {
         WindowGroup("Tasks") {
             MainTasksWindow(
@@ -19,9 +17,6 @@ struct TasksMacApp: App {
             )
             .frame(minWidth: 920, minHeight: 620)
             .preferredColorScheme(.dark)
-            .onReceive(timer) { _ in
-                store.tickTimer()
-            }
         }
         .commands {
             CommandMenu("Tasks") {
@@ -44,6 +39,9 @@ struct TasksMacApp: App {
 
                 Button(store.state.hardDayMode ? "Exit Hard Day Mode" : "Pick One Thing for Me (Hard Day)") {
                     store.toggleHardDayMode()
+                    if store.state.hardDayMode {
+                        selectedSection = .lifeDraw
+                    }
                 }
                 .keyboardShortcut("1", modifiers: [.command, .shift])
             }

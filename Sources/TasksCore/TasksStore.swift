@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 #if canImport(CoreFoundation)
 import CoreFoundation
@@ -17,6 +18,7 @@ public final class TasksStore: ObservableObject {
     public let storageURL: URL
     private let cloudKit: CloudKitSyncManager
     private var suppressDarwinPost = false
+    private var focusTimerCancellable: AnyCancellable?
 
     public init(storageURL: URL? = nil, enableCloudKit: Bool? = nil) {
         let resolvedURL = storageURL ?? Self.defaultStorageURL()
@@ -66,12 +68,44 @@ public final class TasksStore: ObservableObject {
         return try? JSONDecoder.tasksDecoder.decode(TasksState.self, from: data)
     }
 
-    public nonisolated static func saveState(_ state: TasksState, to url: URL) {
+    @discardableResult
+    public nonisolated static func saveState(_ state: TasksState, to url: URL) -> Bool {
         let dir = url.deletingLastPathComponent()
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        if let data = try? JSONEncoder.tasksEncoder.encode(state) {
-            try? data.write(to: url, options: .atomic)
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let data = try JSONEncoder.tasksEncoder.encode(state)
+            try data.write(to: url, options: .atomic)
+            return true
+        } catch {
+            return false
         }
+    }
+
+    /// Coordinates cross-process read-modify-write on the shared state file using an exclusive flock lockfile.
+    public nonisolated static func mutateStateOnDisk<T>(
+        at url: URL,
+        _ mutation: (inout TasksState) throws -> T
+    ) throws -> T {
+        let dir = url.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let lockURL = url.appendingPathExtension("lock")
+        let fd = open(lockURL.path, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR)
+        if fd >= 0 {
+            _ = flock(fd, LOCK_EX)
+        }
+        defer {
+            if fd >= 0 {
+                _ = flock(fd, LOCK_UN)
+                close(fd)
+            }
+        }
+
+        var current = loadState(from: url) ?? TasksState()
+        let result = try mutation(&current)
+        let data = try JSONEncoder.tasksEncoder.encode(current)
+        try data.write(to: url, options: .atomic)
+        postDarwinNotification()
+        return result
     }
 
     public nonisolated static func postDarwinNotification() {
@@ -83,6 +117,15 @@ public final class TasksStore: ObservableObject {
             nil,
             nil,
             true
+        )
+        #endif
+    }
+
+    deinit {
+        #if os(macOS) || os(iOS) || os(watchOS)
+        CFNotificationCenterRemoveEveryObserver(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            Unmanaged.passUnretained(self).toOpaque()
         )
         #endif
     }
@@ -114,6 +157,11 @@ public final class TasksStore: ObservableObject {
         let reconciled = Self.reconcileDraws(diskState)
         if reconciled != state {
             state = reconciled
+            let tasksSnapshot = reconciled.tasks
+            Task {
+                await cloudKit.pushTasks(tasksSnapshot)
+                self.syncStatus = await cloudKit.statusSummary()
+            }
         }
     }
 
@@ -217,7 +265,9 @@ public final class TasksStore: ObservableObject {
     }
 
     public var oneThingTask: TaskItem? {
-        if let pinned = state.tasks.first(where: { $0.status == .active && !$0.isDeleted && $0.oneThing }) {
+        if let pinned = state.tasks.first(where: {
+            $0.status == .active && !$0.isDeleted && $0.oneThing && (state.workHoursOn || $0.pool == .life)
+        }) {
             return pinned
         }
         return lifeDrawTasks.quick ?? computerDraw.visible.first
@@ -304,7 +354,7 @@ public final class TasksStore: ObservableObject {
         guard let title = state.tasks.first(where: { $0.id == taskId })?.title else { return }
         commit({ st in
             guard let idx = st.tasks.firstIndex(where: { $0.id == taskId }) else { return }
-            st.tasks[idx].cooldownUntil = "2026-11-08"
+            st.tasks[idx].cooldownUntil = TasksDateHelper.addDays(to: st.todayISO, days: 4)
             st.tasks[idx].lastSurfacedAt = st.todayISO
             st.tasks[idx].updatedAt = Date()
             if st.weeklyDraw.quickId == taskId { st.weeklyDraw.quickId = nil }
@@ -315,9 +365,10 @@ public final class TasksStore: ObservableObject {
 
     public func rerollLifeDraw() {
         commit({ st in
+            let nextCooldown = TasksDateHelper.addDays(to: st.todayISO, days: 4)
             for id in [st.weeklyDraw.quickId, st.weeklyDraw.mediumId].compactMap({ $0 }) {
                 if let idx = st.tasks.firstIndex(where: { $0.id == id }) {
-                    st.tasks[idx].cooldownUntil = "2026-11-08"
+                    st.tasks[idx].cooldownUntil = nextCooldown
                     st.tasks[idx].lastSurfacedAt = st.todayISO
                     st.tasks[idx].updatedAt = Date()
                 }
@@ -326,15 +377,16 @@ public final class TasksStore: ObservableObject {
         }, logMessage: "[Reroll] Re-dealt Life Draw without guilt")
     }
 
-    public func snoozeTask(_ taskId: String, untilISO: String = "2026-11-11") {
+    public func snoozeTask(_ taskId: String, untilISO: String? = nil) {
         guard let title = state.tasks.first(where: { $0.id == taskId })?.title else { return }
         commit({ st in
             guard let idx = st.tasks.firstIndex(where: { $0.id == taskId }) else { return }
-            st.tasks[idx].snoozedUntil = untilISO
+            let resolvedUntil = untilISO ?? TasksDateHelper.addDays(to: st.todayISO, days: 7)
+            st.tasks[idx].snoozedUntil = resolvedUntil
             st.tasks[idx].updatedAt = Date()
             if st.weeklyDraw.quickId == taskId { st.weeklyDraw.quickId = nil }
             if st.weeklyDraw.mediumId == taskId { st.weeklyDraw.mediumId = nil }
-        }, logMessage: "[Snooze] Hid \"\(title)\" until \(untilISO)")
+        }, logMessage: "[Snooze] Hid \"\(title)\" for 1 week")
     }
 
     public func addSelfNote(taskId: String, text: String, dateLabel: String = "Just now") {
@@ -437,14 +489,22 @@ public final class TasksStore: ObservableObject {
         activeTimerTaskId = taskId
         timerRemainingSeconds = max(60, mins * 60)
         timerRunning = true
+        if focusTimerCancellable == nil {
+            focusTimerCancellable = Timer.publish(every: 1, on: .main, in: .common)
+                .autoconnect()
+                .sink { [weak self] _ in
+                    self?.tickTimer()
+                }
+        }
     }
 
     public func tickTimer() {
         guard timerRunning, activeTimerTaskId != nil else { return }
         if timerRemainingSeconds > 0 {
             timerRemainingSeconds -= 1
-        } else {
-            timerRunning = false
+        }
+        if timerRemainingSeconds == 0 {
+            stopTimer()
         }
     }
 
@@ -457,5 +517,7 @@ public final class TasksStore: ObservableObject {
         activeTimerTaskId = nil
         timerRemainingSeconds = 0
         timerRunning = false
+        focusTimerCancellable?.cancel()
+        focusTimerCancellable = nil
     }
 }

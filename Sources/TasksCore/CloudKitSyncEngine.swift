@@ -64,13 +64,17 @@ public actor CloudKitSyncManager {
             let db = container.privateCloudDatabase
             let zoneID = CKRecordZone.ID(zoneName: Self.zoneName, ownerName: CKCurrentUserDefaultName)
             let query = CKQuery(recordType: Self.recordType, predicate: NSPredicate(value: true))
-            let (matchResults, _) = try await db.records(matching: query, inZoneWith: zoneID)
+            var (matchResults, cursor) = try await db.records(matching: query, inZoneWith: zoneID)
             var fetched: [TaskItem] = []
-            for (_, result) in matchResults {
-                if case .success(let record) = result,
-                   let item = Self.decodeRecord(record) {
-                    fetched.append(item)
+            while true {
+                for (_, result) in matchResults {
+                    if case .success(let record) = result,
+                       let item = Self.decodeRecord(record) {
+                        fetched.append(item)
+                    }
                 }
+                guard let nextCursor = cursor else { break }
+                (matchResults, cursor) = try await db.records(continuingMatchFrom: nextCursor)
             }
             lastSyncStatus = "Synced with iCloud (\(fetched.count) records)"
             return fetched

@@ -174,10 +174,38 @@ public struct TaskItem: Codable, Sendable, Equatable, Identifiable {
 public struct WeeklyDrawIds: Codable, Sendable, Equatable {
     public var quickId: String?
     public var mediumId: String?
+    public var weekKey: String?
 
-    public init(quickId: String? = nil, mediumId: String? = nil) {
+    public init(quickId: String? = nil, mediumId: String? = nil, weekKey: String? = nil) {
         self.quickId = quickId
         self.mediumId = mediumId
+        self.weekKey = weekKey
+    }
+}
+
+public enum TasksDateHelper {
+    public static func addDays(to isoDate: String, days: Int) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd"
+        guard let base = formatter.date(from: isoDate),
+              let target = formatter.calendar.date(byAdding: .day, value: days, to: base) else {
+            return isoDate
+        }
+        return formatter.string(from: target)
+    }
+
+    public static func isoWeekKey(for isoDate: String) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .iso8601)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd"
+        guard let date = formatter.date(from: isoDate) else { return isoDate }
+        let comps = formatter.calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
+        return "\(comps.yearForWeekOfYear ?? 0)-W\(comps.weekOfYear ?? 0)"
     }
 }
 

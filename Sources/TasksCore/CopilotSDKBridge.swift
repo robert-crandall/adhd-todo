@@ -79,7 +79,7 @@ public enum CopilotSDKBridge {
                 context = .errands
             } else if lower.contains("patio") || lower.contains("gutter") || lower.contains("yard") || lower.contains("hose") || lower.contains("car") || lower.contains("tire") || lower.contains("porch") {
                 context = .outside
-            } else if lower.contains("email") || lower.contains("tax") || lower.contains("pr") || lower.contains("code") || lower.contains("mac") || lower.contains("reply") || lower.contains("review") || lower.contains("doc") {
+            } else if lower.range(of: #"\b(emails?|tax(es)?|prs?|code|mac|reply|reviews?|docs?|documents?)\b"#, options: .regularExpression) != nil {
                 context = .computer
             } else {
                 context = .anywhere
@@ -153,9 +153,18 @@ public enum CopilotSDKBridge {
         let prompt = """
         Convert this brain dump into a JSON array of objects with keys: title (string), context ("Outside"|"Errands"|"Anywhere"|"Computer"), effort ("Quick"|"Medium"|"Big"), season ("Any"|"Spring"|"Summer"|"Fall"|"Winter"). Output ONLY valid JSON. Input: \(text)
         """
+        struct CopilotDraftResponse: Decodable {
+            let title: String
+            let context: TaskContext
+            let effort: TaskEffort
+            let season: TaskSeason
+        }
         guard let output = runCopilotPrompt(prompt),
-              let data = output.data(using: .utf8) else { return nil }
-        return try? JSONDecoder().decode([BrainDumpDraft].self, from: data)
+              let data = output.data(using: .utf8),
+              let items = try? JSONDecoder().decode([CopilotDraftResponse].self, from: data) else { return nil }
+        return items.map {
+            BrainDumpDraft(title: $0.title, context: $0.context, effort: $0.effort, season: $0.season)
+        }
     }
 
     private static func invokeCopilotBreakdown(_ task: TaskItem) async -> [TaskStep]? {

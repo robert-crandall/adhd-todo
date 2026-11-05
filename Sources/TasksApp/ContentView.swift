@@ -186,7 +186,7 @@ struct TopHeaderBar: View {
 
             Button {
                 store.toggleHardDayMode()
-                if !store.state.hardDayMode {
+                if store.state.hardDayMode {
                     selectedSection = .lifeDraw
                 }
             } label: {
@@ -987,7 +987,7 @@ struct MCPSimulatorDetailView: View {
                                 source: "Copilot MCP",
                                 externalRef: "copilot-cli"
                             )
-                            selectedSection = (customContext == .computer) ? .computerWork : .lifeDraw
+                            selectedSection = .computerWork
                         } label: {
                             Label("Push via Copilot MCP", systemImage: "terminal")
                         }
@@ -1003,7 +1003,7 @@ struct MCPSimulatorDetailView: View {
                                 source: "Claude MCP",
                                 externalRef: "claude-desktop"
                             )
-                            selectedSection = (customContext == .computer) ? .computerWork : .lifeDraw
+                            selectedSection = .computerWork
                         } label: {
                             Label("Push via Claude MCP", systemImage: "sparkles")
                         }
