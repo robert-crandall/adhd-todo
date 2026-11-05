@@ -64,7 +64,16 @@ public actor CloudKitSyncManager {
             }
 
             if !recordsToSave.isEmpty {
-                _ = try await db.modifyRecords(saving: recordsToSave, deleting: [], savePolicy: .ifServerRecordUnchanged)
+                let (saveResults, _) = try await db.modifyRecords(
+                    saving: recordsToSave,
+                    deleting: [],
+                    savePolicy: .ifServerRecordUnchanged
+                )
+                for (_, result) in saveResults {
+                    if case .failure(let error) = result {
+                        throw error
+                    }
+                }
             }
             lastSyncStatus = "Synced \(recordsToSave.count) tasks to iCloud"
         } catch {
@@ -137,7 +146,12 @@ extension JSONEncoder {
     public static var tasksEncoder: JSONEncoder {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        encoder.dateEncodingStrategy = .iso8601
+        encoder.dateEncodingStrategy = .custom { date, encoder in
+            var container = encoder.singleValueContainer()
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            try container.encode(formatter.string(from: date))
+        }
         return encoder
     }
 }
@@ -145,7 +159,17 @@ extension JSONEncoder {
 extension JSONDecoder {
     public static var tasksDecoder: JSONDecoder {
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let str = try container.decode(String.self)
+            let fractional = ISO8601DateFormatter()
+            fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = fractional.date(from: str) { return date }
+            let plain = ISO8601DateFormatter()
+            plain.formatOptions = [.withInternetDateTime]
+            if let date = plain.date(from: str) { return date }
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid ISO8601 date: \(str)")
+        }
         return decoder
     }
 }

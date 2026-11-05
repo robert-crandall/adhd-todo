@@ -145,7 +145,11 @@ public struct MCPServerHandler: Sendable {
                 let stamp = TasksDateHelper.noteTimestampString()
                 let item = try TasksStore.mutateStateOnDisk(at: storageURL) { state in
                     let nowParts = TasksDateHelper.currentDateParts()
-                    state.todayISO = nowParts.todayISO
+                    if state.todayISO != nowParts.todayISO {
+                        state.todayISO = nowParts.todayISO
+                        state.currentMonth = nowParts.month
+                        state.currentSeason = nowParts.season
+                    }
                     let created = TaskItem(
                         id: "t-mcp-\(Int(Date().timeIntervalSince1970 * 1000))-\(Int.random(in: 100...999))",
                         title: title,
@@ -203,17 +207,25 @@ public struct MCPServerHandler: Sendable {
 
         case "complete_task":
             let query = (args["query"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            guard !query.isEmpty else {
+                return textResult("No active task matching '' found.", isError: true)
+            }
             do {
                 let completed: (title: String, id: String)? = try TasksStore.mutateStateOnDisk(at: storageURL) { state in
-                    guard let idx = state.tasks.firstIndex(where: {
-                        $0.status == .active && !$0.isDeleted && ($0.id.lowercased() == query || $0.title.lowercased().contains(query))
-                    }) else {
-                        return nil
+                    let exactIdx = state.tasks.firstIndex { $0.id.lowercased() == query }
+                    let idx: Int?
+                    if let exactIdx {
+                        idx = (state.tasks[exactIdx].status == .active && !state.tasks[exactIdx].isDeleted) ? exactIdx : nil
+                    } else {
+                        idx = state.tasks.firstIndex {
+                            $0.status == .active && !$0.isDeleted && $0.title.lowercased().contains(query)
+                        }
                     }
-                    let title = state.tasks[idx].title
-                    let id = state.tasks[idx].id
-                    state.tasks[idx].status = .done
-                    state.tasks[idx].updatedAt = Date()
+                    guard let resolvedIdx = idx else { return nil }
+                    let title = state.tasks[resolvedIdx].title
+                    let id = state.tasks[resolvedIdx].id
+                    state.tasks[resolvedIdx].status = .done
+                    state.tasks[resolvedIdx].updatedAt = Date()
                     if state.weeklyDraw.quickId == id { state.weeklyDraw.quickId = nil }
                     if state.weeklyDraw.mediumId == id { state.weeklyDraw.mediumId = nil }
                     return (title, id)
@@ -235,14 +247,19 @@ public struct MCPServerHandler: Sendable {
             do {
                 let stamp = TasksDateHelper.noteTimestampString()
                 let matchedTitle: String? = try TasksStore.mutateStateOnDisk(at: storageURL) { state in
-                    guard let idx = state.tasks.firstIndex(where: {
-                        !$0.isDeleted && ($0.id.lowercased() == query || $0.title.lowercased().contains(query))
-                    }) else {
-                        return nil
+                    let exactIdx = state.tasks.firstIndex { $0.id.lowercased() == query }
+                    let idx: Int?
+                    if let exactIdx {
+                        idx = !state.tasks[exactIdx].isDeleted ? exactIdx : nil
+                    } else {
+                        idx = state.tasks.firstIndex {
+                            !$0.isDeleted && $0.title.lowercased().contains(query)
+                        }
                     }
-                    state.tasks[idx].previousNotes.insert(TaskNote(date: stamp, text: note), at: 0)
-                    state.tasks[idx].updatedAt = Date()
-                    return state.tasks[idx].title
+                    guard let resolvedIdx = idx else { return nil }
+                    state.tasks[resolvedIdx].previousNotes.insert(TaskNote(date: stamp, text: note), at: 0)
+                    state.tasks[resolvedIdx].updatedAt = Date()
+                    return state.tasks[resolvedIdx].title
                 }
                 guard let matchedTitle else {
                     return textResult("Task matching '\(query)' not found.", isError: true)

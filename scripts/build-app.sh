@@ -50,7 +50,15 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<EOF
 </plist>
 EOF
 
-SIGN_IDENTITY=$(security find-identity -v -p codesigning | awk -F'"' '/Apple Development/ {print $2; exit}')
+SIGN_IDENTITY=""
+while IFS= read -r candidate; do
+  [[ -z "$candidate" ]] && continue
+  if security find-certificate -c "$candidate" -p 2>/dev/null | openssl x509 -noout -subject 2>/dev/null | grep -q "OU=${TEAM_ID}"; then
+    SIGN_IDENTITY="$candidate"
+    break
+  fi
+done < <(security find-identity -v -p codesigning | awk -F'"' '/Apple Development/ {print $2}')
+
 if [[ -z "$SIGN_IDENTITY" ]]; then
   echo "Error: No Apple Development codesigning identity found for Team ${TEAM_ID}." >&2
   exit 1

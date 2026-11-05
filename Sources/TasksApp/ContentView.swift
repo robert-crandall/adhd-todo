@@ -804,7 +804,7 @@ struct PullTimeDetailView: View {
                 }
                 Spacer()
                 Button {
-                    store.updatePullFilter()
+                    store.rerollPullCandidates()
                 } label: {
                     Label("Roll Again", systemImage: "dice")
                 }

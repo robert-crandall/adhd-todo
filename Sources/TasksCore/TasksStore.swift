@@ -91,17 +91,25 @@ public final class TasksStore: ObservableObject {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let lockURL = url.appendingPathExtension("lock")
         let fd = open(lockURL.path, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR)
-        if fd >= 0 {
-            _ = flock(fd, LOCK_EX)
+        guard fd >= 0 else {
+            throw CocoaError(.fileLocking)
+        }
+        guard flock(fd, LOCK_EX) == 0 else {
+            close(fd)
+            throw CocoaError(.fileLocking)
         }
         defer {
-            if fd >= 0 {
-                _ = flock(fd, LOCK_UN)
-                close(fd)
-            }
+            _ = flock(fd, LOCK_UN)
+            close(fd)
         }
 
-        var current = loadState(from: url) ?? TasksState()
+        var current: TasksState
+        if FileManager.default.fileExists(atPath: url.path) {
+            let existingData = try Data(contentsOf: url)
+            current = try JSONDecoder.tasksDecoder.decode(TasksState.self, from: existingData)
+        } else {
+            current = TasksState()
+        }
         let result = try mutation(&current)
         let data = try JSONEncoder.tasksEncoder.encode(current)
         try data.write(to: url, options: .atomic)
@@ -161,8 +169,20 @@ public final class TasksStore: ObservableObject {
             let tasksSnapshot = reconciled.tasks
             Task {
                 await cloudKit.pushTasks(tasksSnapshot)
+                if let remoteTasks = await cloudKit.pullRemoteTasks(), !remoteTasks.isEmpty {
+                    mergeRemoteTasks(remoteTasks)
+                }
                 self.syncStatus = await cloudKit.statusSummary()
             }
+        }
+    }
+
+    public func refreshFromCloud() {
+        Task {
+            if let remoteTasks = await cloudKit.pullRemoteTasks(), !remoteTasks.isEmpty {
+                mergeRemoteTasks(remoteTasks)
+            }
+            self.syncStatus = await cloudKit.statusSummary()
         }
     }
 
@@ -343,6 +363,18 @@ public final class TasksStore: ObservableObject {
             if let context { st.pullContextFilter = context }
             if let effort { st.pullEffortFilter = effort }
         }, logMessage: "[Pull] Filter Context=\(context ?? state.pullContextFilter), Effort=\(effort ?? state.pullEffortFilter)")
+    }
+
+    public func rerollPullCandidates() {
+        let stamp = Self.shortTimeString()
+        commit({ st in
+            for id in st.pullResults {
+                if let idx = st.tasks.firstIndex(where: { $0.id == id }) {
+                    st.tasks[idx].lastSurfacedAt = "\(st.todayISO)T\(stamp)"
+                    st.tasks[idx].updatedAt = Date()
+                }
+            }
+        }, logMessage: "[Pull] Rolled fresh pull candidates")
     }
 
     public func completeTask(_ taskId: String) {
