@@ -1,0 +1,3051 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PROTOTYPE - No-Guilt Task Picker (macOS + iPhone)</title>
+  <style>
+    :root {
+      --bg-canvas: #0b0e14;
+      --bg-surface: #131822;
+      --bg-elevated: #1c2331;
+      --bg-hover: #252e40;
+      --bg-glass: rgba(24, 30, 44, 0.85);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(255, 255, 255, 0.16);
+      --text-primary: #f0f4f8;
+      --text-secondary: #9aa5b8;
+      --text-muted: #647087;
+      --accent: #7c9cff;
+      --accent-soft: rgba(124, 156, 255, 0.14);
+      --emerald: #4ade80;
+      --emerald-soft: rgba(74, 222, 128, 0.14);
+      --amber: #fbbf24;
+      --amber-soft: rgba(251, 191, 36, 0.14);
+      --purple: #c084fc;
+      --purple-soft: rgba(192, 132, 252, 0.14);
+      --rose: #f472b6;
+      --rose-soft: rgba(244, 114, 182, 0.14);
+      --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.55);
+      --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.25);
+      --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+      --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      --radius-lg: 16px;
+      --radius-md: 11px;
+      --radius-sm: 7px;
+    }
+
+    [data-theme="light"] {
+      --bg-canvas: #eef1f6;
+      --bg-surface: #ffffff;
+      --bg-elevated: #f5f7fa;
+      --bg-hover: #eaeef5;
+      --bg-glass: rgba(255, 255, 255, 0.88);
+      --border: rgba(15, 23, 42, 0.08);
+      --border-strong: rgba(15, 23, 42, 0.15);
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+      --accent: #4f6ef7;
+      --accent-soft: rgba(79, 110, 247, 0.11);
+      --emerald: #16a34a;
+      --emerald-soft: rgba(22, 163, 74, 0.11);
+      --amber: #d97706;
+      --amber-soft: rgba(217, 119, 6, 0.12);
+      --purple: #9333ea;
+      --purple-soft: rgba(147, 51, 234, 0.11);
+      --rose: #db2777;
+      --rose-soft: rgba(219, 39, 119, 0.11);
+      --shadow-lg: 0 20px 50px rgba(15, 23, 42, 0.12);
+      --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.06);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg-canvas);
+      color: var(--text-primary);
+      line-height: 1.45;
+      padding-bottom: 88px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Prototype Header & Scenario Lab */
+    .proto-header {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .proto-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .proto-badge {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 3px 8px;
+      border-radius: 99px;
+      background: var(--purple-soft);
+      color: var(--purple);
+      border: 1px solid rgba(192, 132, 252, 0.3);
+    }
+    .proto-question {
+      font-size: 13px;
+      color: var(--text-secondary);
+      max-width: 780px;
+    }
+    .proto-question strong { color: var(--text-primary); }
+    .proto-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* Scenario Walkthrough Bar */
+    .scenario-bar {
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      font-size: 12.5px;
+    }
+    .scenario-tabs {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .scenario-tab {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      padding: 5px 10px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 12px;
+      font-family: inherit;
+      transition: all 0.15s ease;
+    }
+    .scenario-tab:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .scenario-tab.active {
+      background: var(--accent-soft);
+      color: var(--accent);
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+    .last-action-pill {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--emerald);
+      background: var(--emerald-soft);
+      padding: 4px 10px;
+      border-radius: 6px;
+      max-width: 480px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Buttons & Chips */
+    button {
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: inherit;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 13px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      border: 1px solid var(--border-strong);
+      transition: all 0.14s ease;
+    }
+    .btn:hover { background: var(--bg-hover); }
+    .btn-sm { padding: 4px 9px; font-size: 12px; border-radius: 6px; }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: transparent;
+    }
+    .btn-primary:hover { filter: brightness(1.08); background: var(--accent); }
+    .btn-done {
+      background: var(--emerald-soft);
+      color: var(--emerald);
+      border-color: rgba(74, 222, 128, 0.3);
+    }
+    .btn-done:hover { background: rgba(74, 222, 128, 0.24); }
+    .btn-amber {
+      background: var(--amber-soft);
+      color: var(--amber);
+      border-color: rgba(251, 191, 36, 0.3);
+    }
+    .btn-ghost {
+      background: transparent;
+      border-color: transparent;
+      color: var(--text-secondary);
+    }
+    .btn-ghost:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 99px;
+      font-size: 11.5px;
+      font-weight: 500;
+      background: var(--bg-elevated);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+    .chip.quick { color: var(--emerald); background: var(--emerald-soft); border-color: transparent; }
+    .chip.medium { color: var(--accent); background: var(--accent-soft); border-color: transparent; }
+    .chip.big { color: var(--purple); background: var(--purple-soft); border-color: transparent; }
+    .chip.onething { color: var(--amber); background: var(--amber-soft); border-color: rgba(251,191,36,0.3); font-weight: 600; }
+    .chip.source { color: var(--text-primary); background: var(--bg-hover); font-family: var(--font-mono); font-size: 11px; }
+    .chip.selectable { cursor: pointer; padding: 5px 11px; font-size: 12.5px; }
+    .chip.selectable.selected {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    /* Stage Container */
+    .stage {
+      padding: 20px 24px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 28px;
+      min-height: calc(100vh - 175px);
+    }
+    .stage-main {
+      flex: 1;
+      max-width: 1280px;
+      display: flex;
+      justify-content: center;
+      gap: 28px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    /* ==========================================
+       macOS Window Frame & Menu Bar
+       ========================================== */
+    .macos-shell {
+      width: 100%;
+      max-width: 960px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .macos-menubar {
+      height: 30px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-secondary);
+      position: relative;
+      box-shadow: var(--shadow-sm);
+    }
+    .menubar-left, .menubar-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .menubar-appname { font-weight: 700; color: var(--text-primary); }
+    .menubar-extra-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 8px;
+      border-radius: 5px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 11.5px;
+      cursor: pointer;
+    }
+    .menubar-popover {
+      position: absolute;
+      top: 36px;
+      right: 10px;
+      width: 310px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      padding: 14px;
+      z-index: 60;
+    }
+
+    .macos-window {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      min-height: 620px;
+    }
+    .macos-window.variant-b-window {
+      grid-template-columns: 1fr;
+      max-width: 680px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .macos-sidebar {
+      background: var(--bg-elevated);
+      border-right: 1px solid var(--border);
+      padding: 14px 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .traffic-lights {
+      display: flex;
+      gap: 7px;
+      padding: 4px 6px 14px;
+    }
+    .traffic-dot { width: 11px; height: 11px; border-radius: 50%; }
+    .traffic-dot.red { background: #ff5f57; }
+    .traffic-dot.yellow { background: #febc2e; }
+    .traffic-dot.green { background: #28c840; }
+
+    .nav-section-label {
+      font-size: 10.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      padding: 10px 8px 4px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 7px 10px;
+      border-radius: 7px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      text-align: left;
+      margin-bottom: 2px;
+    }
+    .nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .nav-item.active {
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .nav-count {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+    }
+
+    .macos-content {
+      padding: 24px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      overflow-y: auto;
+      max-height: 700px;
+    }
+
+    /* ==========================================
+       iPhone Frame
+       ========================================== */
+    .iphone-shell {
+      width: 375px;
+      height: 740px;
+      background: var(--bg-surface);
+      border: 8px solid #222938;
+      border-radius: 44px;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .iphone-notch {
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 22px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-elevated);
+    }
+    .dynamic-island {
+      background: #000;
+      color: #fff;
+      border-radius: 99px;
+      padding: 3px 12px;
+      font-size: 10.5px;
+      font-family: var(--font-mono);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .iphone-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .iphone-tabbar {
+      height: 60px;
+      background: var(--bg-elevated);
+      border-top: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      padding: 4px 6px 8px;
+    }
+    .iphone-tab {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      gap: 2px;
+      color: var(--text-muted);
+      border-radius: 8px;
+    }
+    .iphone-tab.active { color: var(--accent); font-weight: 600; }
+
+    /* ==========================================
+       Cards & Domain UI
+       ========================================== */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .week-dots {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--bg-elevated);
+      padding: 6px 12px;
+      border-radius: 99px;
+      border: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    .day-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 600;
+      background: var(--bg-surface);
+      color: var(--text-muted);
+      border: 1px solid var(--border-strong);
+      cursor: pointer;
+    }
+    .day-dot.active {
+      background: var(--emerald-soft);
+      color: var(--emerald);
+      border-color: var(--emerald);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .section-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .section-subtitle {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+    }
+    .task-card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+      transition: border-color 0.15s ease;
+    }
+    .task-card:hover { border-color: rgba(124, 156, 255, 0.4); }
+    .task-card.one-thing-card {
+      border-color: rgba(251, 191, 36, 0.5);
+      background: linear-gradient(180deg, rgba(251, 191, 36, 0.06), var(--bg-elevated));
+    }
+    .task-slot-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .task-title {
+      font-size: 15.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+      cursor: pointer;
+    }
+    .task-title:hover { color: var(--accent); }
+    .task-notes {
+      font-size: 12.5px;
+      color: var(--text-secondary);
+    }
+    .task-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+    .task-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* Gentle prompt banner (2x skipped or 14d past do-by) */
+    .gentle-banner {
+      background: var(--purple-soft);
+      border: 1px solid rgba(192, 132, 252, 0.35);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .gentle-banner-title {
+      color: var(--purple);
+      font-weight: 600;
+    }
+
+    /* Hard Day Banner / View */
+    .hard-day-box {
+      background: linear-gradient(145deg, rgba(124, 156, 255, 0.1), rgba(192, 132, 252, 0.08));
+      border: 1px solid rgba(124, 156, 255, 0.35);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      margin: 12px 0;
+    }
+    .hard-day-title { font-size: 20px; font-weight: 600; }
+    .hard-day-sub { font-size: 13.5px; color: var(--text-secondary); max-width: 420px; }
+
+    /* Focus Timer Bar / Panel */
+    .timer-banner {
+      background: var(--bg-elevated);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .timer-digits {
+      font-family: var(--font-mono);
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    /* Hours View Blocks */
+    .hours-track {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .hour-block {
+      background: var(--bg-elevated);
+      border-left: 4px solid var(--accent);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Inputs & Forms */
+    .input, textarea {
+      width: 100%;
+      background: var(--bg-canvas);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      padding: 9px 12px;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 13.5px;
+    }
+    .input:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    /* State & Eligibility Inspector Drawer */
+    .inspector-panel {
+      width: 340px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: 740px;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+    .inspector-row {
+      font-size: 11.5px;
+      padding: 7px 9px;
+      border-radius: 6px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .inspector-row.ineligible { opacity: 0.6; }
+    .mono { font-family: var(--font-mono); font-size: 11px; }
+
+    /* Modal / Quick Capture Overlay */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 90px;
+      z-index: 90;
+    }
+    .spotlight-modal {
+      width: 92%;
+      max-width: 540px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Inline SVG (Lucide-style) Icons */
+    .lucide {
+      display: inline-block;
+      vertical-align: -0.18em;
+      flex-shrink: 0;
+    }
+    .nav-item-left {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Floating Prototype Switcher (UI.md spec) */
+    .proto-switcher {
+      position: fixed;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #0f172a;
+      color: #f8fafc;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 999px;
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+      z-index: 100;
+      font-size: 12.5px;
+    }
+    .proto-switcher button {
+      color: #f8fafc;
+      padding: 5px 10px;
+      border-radius: 99px;
+      background: rgba(255, 255, 255, 0.1);
+      font-weight: 600;
+      font-size: 12px;
+    }
+    .proto-switcher button:hover { background: rgba(255, 255, 255, 0.2); }
+    .proto-switcher-label {
+      padding: 0 6px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .proto-switcher-divider {
+      width: 1px;
+      height: 18px;
+      background: rgba(255, 255, 255, 0.2);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Prototype Header -->
+  <header class="proto-header">
+    <div class="proto-title-wrap">
+      <span class="proto-badge">Throwaway Prototype</span>
+      <p class="proto-question">
+        <strong>Questions explored:</strong>
+        (1) Weighted, zero-overdue Weekly Push + Context Pull draw.
+        (2) Local MCP server capture from Copilot &amp; Claude + GitHub Copilot SDK AI features (macOS first, iPhone synced via CloudKit).
+      </p>
+    </div>
+    <div class="proto-controls">
+      <button class="btn btn-sm" id="btn-quick-capture" title="Shortcut: Cmd+K"></button>
+      <button class="btn btn-sm" id="btn-toggle-tags" title="Hide or show metadata tags for a cleaner surface"></button>
+      <button class="btn btn-sm" id="btn-mcp-console" title="Test external push from Copilot / Claude / gh CLI"></button>
+      <button class="btn btn-sm" id="btn-hard-day"></button>
+      <button class="btn btn-sm" id="btn-work-duty"></button>
+      <button class="btn btn-sm" id="btn-inspector"></button>
+      <button class="btn btn-sm" id="btn-theme"></button>
+    </div>
+  </header>
+
+  <!-- Guided Scenario Walkthroughs & State Diff Bar (LOGIC.md) -->
+  <section class="scenario-bar">
+    <div class="scenario-tabs" id="scenario-tabs"></div>
+    <div class="last-action-pill" id="last-action-log">Ready · Monday fresh week (0 overdue, 0 streaks)</div>
+  </section>
+
+  <!-- Main Stage -->
+  <main class="stage">
+    <div class="stage-main" id="stage-main"></div>
+    <aside class="inspector-panel" id="inspector-panel" style="display:none;"></aside>
+  </main>
+
+  <!-- Quick Capture / Snooze / Detail Modal Host -->
+  <div id="modal-root"></div>
+
+  <!-- Floating Bottom Variant Switcher (UI.md) -->
+  <nav class="proto-switcher" aria-label="Prototype Variant Switcher">
+    <button id="variant-prev" title="Previous Variant (←)">←</button>
+    <span class="proto-switcher-label" id="variant-label">Variant A</span>
+    <button id="variant-next" title="Next Variant (→)">→</button>
+    <span class="proto-switcher-divider"></span>
+    <button id="device-cycle" title="Switch macOS / iPhone / Side-by-Side">Both</button>
+  </nav>
+
+  <!-- =========================================================================
+       PORTABLE PURE DOMAIN MODULE (No DOM dependencies - liftable to Swift/TS)
+       ========================================================================= -->
+  <script>
+    const DrawEngine = (() => {
+      const LEAD_DAYS = { Quick: 7, Medium: 14, Big: 30 };
+
+      function parseMMDD(mmdd, year) {
+        const [m, d] = mmdd.split('-').map(Number);
+        return new Date(year, m - 1, d);
+      }
+
+      function isInsideSeason(window, nowDate) {
+        if (!window || !window.start || !window.end) return true;
+        const m = nowDate.getMonth() + 1;
+        const d = nowDate.getDate();
+        const cur = m * 100 + d;
+        const [sm, sd] = window.start.split('-').map(Number);
+        const [em, ed] = window.end.split('-').map(Number);
+        const startVal = sm * 100 + sd;
+        const endVal = em * 100 + ed;
+        if (startVal <= endVal) {
+          return cur >= startVal && cur <= endVal;
+        }
+        // Wraps year end (e.g., 11-01 to 02-28)
+        return cur >= startVal || cur <= endVal;
+      }
+
+      function daysBetween(dateStrA, dateStrB) {
+        const a = new Date(dateStrA + 'T00:00:00');
+        const b = new Date(dateStrB + 'T00:00:00');
+        return Math.round((b - a) / (1000 * 60 * 60 * 24));
+      }
+
+      function evaluateEligibility(task, state) {
+        const reasons = [];
+        if (task.status !== 'active') reasons.push(`status is ${task.status}`);
+        if (task.source && !state.workHoursOn) reasons.push('Off-duty (work stream hidden)');
+        if (task.snoozedUntil && daysBetween(state.today, task.snoozedUntil) > 0) {
+          reasons.push(`snoozed until ${task.snoozedUntil}`);
+        }
+        if (task.cooldownUntil && daysBetween(state.today, task.cooldownUntil) > 0) {
+          reasons.push(`on repeat cooldown until ${task.cooldownUntil}`);
+        }
+        const nowObj = new Date(state.today + 'T00:00:00');
+        if (task.seasonWindow && !isInsideSeason(task.seasonWindow, nowObj)) {
+          reasons.push(`outside season (${task.seasonWindow.start}..${task.seasonWindow.end})`);
+        }
+        if (task.eventAnchor && !state.anchors[task.eventAnchor]) {
+          reasons.push(`waiting for anchor "${task.eventAnchor}"`);
+        }
+
+        const daysSinceShown = task.lastShown
+          ? Math.max(0, daysBetween(task.lastShown, state.today))
+          : 21;
+        const weight = +(1 + daysSinceShown / 7).toFixed(2);
+
+        let withinLeadTime = false;
+        let daysUntilDoBy = null;
+        let gentlePastDuePrompt = false;
+        if (task.doByDate) {
+          daysUntilDoBy = daysBetween(state.today, task.doByDate);
+          const lead = LEAD_DAYS[task.effort] || 7;
+          if (daysUntilDoBy <= lead) withinLeadTime = true;
+          if (daysUntilDoBy < -14 && !task.pastDueAcked) gentlePastDuePrompt = true;
+        }
+
+        return {
+          eligible: reasons.length === 0,
+          reasons,
+          weight,
+          daysSinceShown,
+          withinLeadTime,
+          daysUntilDoBy,
+          gentlePastDuePrompt,
+          twiceSkippedPrompt: (task.skippedStreak || 0) >= 2 && !task.skipSheetDismissed
+        };
+      }
+
+      function pickWeightedSlot(candidates, rng = Math.random) {
+        if (!candidates.length) return null;
+        // 1. Deadline override: tasks within lead time win first (earliest doByDate)
+        const urgent = candidates
+          .filter(c => c.eval.withinLeadTime)
+          .sort((a, b) => a.task.doByDate.localeCompare(b.task.doByDate));
+        if (urgent.length > 0) return urgent[0].task.id;
+
+        // 2. Weighted random draw: weight = 1 + (daysSinceLastShown / 7)
+        const totalWeight = candidates.reduce((acc, c) => acc + c.eval.weight, 0);
+        let roll = rng() * totalWeight;
+        for (const c of candidates) {
+          roll -= c.eval.weight;
+          if (roll <= 0) return c.task.id;
+        }
+        return candidates[candidates.length - 1].task.id;
+      }
+
+      function computeWeeklyDraw(state, excludeIds = []) {
+        // Life Pool only (Outside, Errands, Anywhere - excludes Computer/Work pool)
+        const lifeTasks = state.tasks
+          .filter(t => t.context !== 'Computer' && !t.source && !excludeIds.includes(t.id))
+          .map(t => ({ task: t, eval: evaluateEligibility(t, state) }))
+          .filter(x => x.eval.eligible);
+
+        const quickPool = lifeTasks.filter(x => x.task.effort === 'Quick');
+        const quickId = pickWeightedSlot(quickPool);
+
+        const mediumPool = lifeTasks.filter(x => x.task.effort === 'Medium' && x.task.id !== quickId);
+        let mediumId = pickWeightedSlot(mediumPool);
+
+        // Edge case from spec: if fewer eligible tasks than slots, fill empty slot with another size
+        if (!mediumId) {
+          const fallback = lifeTasks.filter(x => x.task.id !== quickId);
+          mediumId = pickWeightedSlot(fallback);
+        }
+
+        let seasonalId = null;
+        if (state.seasonalThirdSlotOn) {
+          const seasonalPool = lifeTasks.filter(
+            x => x.task.id !== quickId && x.task.id !== mediumId &&
+                 (x.task.effort === 'Big' || x.task.context === 'Outside' || x.task.seasonWindow || x.task.eventAnchor)
+          );
+          seasonalId = pickWeightedSlot(seasonalPool);
+        }
+
+        return { quickId, mediumId, seasonalId };
+      }
+
+      function computeWorkDraw(state, excludeIds = []) {
+        if (!state.workHoursOn) return { visible: [], overflowCount: 0 };
+        const workTasks = state.tasks
+          .filter(t => (t.context === 'Computer' || Boolean(t.source)) && !excludeIds.includes(t.id))
+          .map(t => ({ task: t, eval: evaluateEligibility(t, state) }))
+          .filter(x => x.eval.eligible)
+          .sort((a, b) => {
+            const da = a.task.doByDate || '9999-99-99';
+            const db = b.task.doByDate || '9999-99-99';
+            return da.localeCompare(db);
+          });
+
+        const capped = workTasks.slice(0, state.dailyIncomingCap);
+        const overflowCount = Math.max(0, workTasks.length - state.dailyIncomingCap);
+        return {
+          visible: capped.slice(0, 3).map(x => x.task),
+          overflowCount
+        };
+      }
+
+      function computePullDraw(state, contextFilter, effortFilter, excludeIds = []) {
+        const matches = state.tasks
+          .filter(t => !excludeIds.includes(t.id))
+          .map(t => ({ task: t, eval: evaluateEligibility(t, state) }))
+          .filter(x => {
+            if (!x.eval.eligible) return false;
+            if (contextFilter !== 'Any' && x.task.context !== contextFilter) return false;
+            if (effortFilter !== 'Any' && x.task.effort !== effortFilter) return false;
+            return true;
+          });
+
+        const chosen = [];
+        let pool = [...matches];
+        while (chosen.length < 3 && pool.length > 0) {
+          const id = pickWeightedSlot(pool);
+          chosen.push(id);
+          pool = pool.filter(x => x.task.id !== id);
+        }
+        return chosen;
+      }
+
+      return {
+        evaluateEligibility,
+        computeWeeklyDraw,
+        computeWorkDraw,
+        computePullDraw,
+        daysBetween
+      };
+    })();
+  </script>
+
+  <!-- =========================================================================
+       INITIAL SEED STATE & SCENARIOS
+       ========================================================================= -->
+  <script>
+    function createInitialState() {
+      return {
+        today: '2026-11-04',
+        nav: 'home', // 'home' | 'work' | 'pull' | 'pool' | 'braindump' | 'mcp'
+        homeLayout: 'list', // 'list' (default: title + Done/Not Now, click to expand) | 'cards' (at-a-glance details & notes)
+        expandedTaskId: null,
+        hardDayMode: false,
+        hideTags: false,
+        workHoursOn: true,
+        seasonalThirdSlotOn: false,
+        dailyIncomingCap: 5,
+        menuBarOpen: false,
+        inspectorOpen: false,
+        lastAction: 'Loaded default List View · Title-first surface (click any task to expand notes, Focus Timer & Break it down)',
+        anchors: {
+          'first-frost': false,
+          'clocks-changed': true
+        },
+        pullFilter: { context: 'Outside', effort: 'Medium', results: [] },
+        poolFilter: { pool: 'life', context: 'All', effort: 'All', search: '' },
+        timer: {
+          activeTaskId: null,
+          remainingSec: 1200,
+          totalSec: 1200,
+          running: false,
+          sound: 'Brown Noise',
+          quickNotes: []
+        },
+        brainDumpText: 'Need to call the compounding pharmacy before Friday, clean out the leaf-packed front gutters this weekend, and archive those 40 old Safari tabs on my MacBook.',
+        brainDumpProposals: [],
+        gentleCrisisBanner: null,
+        weeklyDraw: { quickId: 't-filters', mediumId: 't-gutters', seasonalId: null },
+        tasks: [
+          {
+            id: 't-filters',
+            title: 'Order replacement HEPA air filter (20x25x1)',
+            notes: 'Part #MERV13-2025. Furnace slot takes the 1-inch slim frame.',
+            previousNotes: [
+              'Aug 2026: Bought FilterBuy 2-pack; stored the spare upright behind water heater.',
+              'May 2026: Checked size - definitely 20x25x1, not 20x20.'
+            ],
+            context: 'Anywhere',
+            effort: 'Quick',
+            estMinutes: 5,
+            doByDate: '2026-11-08',
+            lastShown: '2026-10-20',
+            skippedStreak: 0,
+            oneThing: true,
+            status: 'active',
+            steps: ['Check furnace slot size label', 'Reorder 2-pack from bookmark']
+          },
+          {
+            id: 't-gutters',
+            title: 'Clear wet maple leaves from front porch gutter',
+            notes: 'Ladder is by the side fence. Wear work gloves.',
+            previousNotes: [
+              'Nov 2025: The elbow above the porch steps clogs first - bring the narrow trowel.'
+            ],
+            context: 'Outside',
+            effort: 'Medium',
+            estMinutes: 25,
+            seasonWindow: { start: '10-01', end: '11-30' },
+            lastShown: '2026-10-18',
+            skippedStreak: 0,
+            oneThing: false,
+            status: 'active',
+            steps: ['Set ladder on flat pavers', 'Scoop downspout mouth first', 'Rinse with hose']
+          },
+          {
+            id: 't-return-ups',
+            title: 'Drop off Amazon return QR box at UPS Store',
+            notes: 'QR code is screenshot in Photos.',
+            previousNotes: [
+              'Last time: The UPS store on Main St has no-box-needed QR scanning at the left counter.'
+            ],
+            context: 'Errands',
+            effort: 'Quick',
+            estMinutes: 10,
+            doByDate: '2026-11-06',
+            lastShown: '2026-10-28',
+            skippedStreak: 2,
+            oneThing: false,
+            status: 'active',
+            steps: []
+          },
+          {
+            id: 't-bookmarks',
+            title: 'Prune 30 stale reading-list tabs into Obsidian',
+            notes: 'Keep anything still relevant, let the rest go guilt-free.',
+            previousNotes: [
+              'Oct 2026: Used Safari -> Copy Links for Tab Group into Daily Note.'
+            ],
+            context: 'Computer',
+            effort: 'Medium',
+            estMinutes: 20,
+            repeatCooldownDays: 14,
+            lastShown: '2026-10-15',
+            skippedStreak: 0,
+            oneThing: false,
+            status: 'active',
+            steps: []
+          },
+          {
+            id: 't-faucets',
+            title: 'Shut off exterior hose bibs & attach foam covers',
+            notes: 'Valve is in basement utility closet.',
+            previousNotes: [
+              'Nov 2025: Back patio shutoff valve is above the laundry sink (labelled Blue).'
+            ],
+            context: 'Outside',
+            effort: 'Quick',
+            estMinutes: 8,
+            eventAnchor: 'first-frost',
+            lastShown: '2026-03-01',
+            skippedStreak: 0,
+            oneThing: false,
+            status: 'active',
+            steps: ['Turn interior brass valve clockwise', 'Open outdoor spigot to drain', 'Snap foam dome on']
+          },
+          {
+            id: 't-smoke',
+            title: 'Test hallway smoke detector after clocks changed',
+            notes: 'Triggered by Clocks Changed event anchor.',
+            previousNotes: ['Takes 2 AA lithium batteries if chirping.'],
+            context: 'Anywhere',
+            effort: 'Quick',
+            estMinutes: 4,
+            eventAnchor: 'clocks-changed',
+            lastShown: '2026-04-01',
+            skippedStreak: 0,
+            oneThing: false,
+            status: 'active',
+            steps: []
+          },
+          {
+            id: 't-garage-rack',
+            title: 'Mount winter tire rack on garage studs',
+            notes: 'Socket wrench 1/2-inch lag bolts.',
+            previousNotes: [],
+            context: 'Outside',
+            effort: 'Big',
+            estMinutes: 60,
+            seasonWindow: { start: '10-15', end: '12-15' },
+            lastShown: '2026-10-01',
+            skippedStreak: 0,
+            oneThing: false,
+            status: 'active',
+            steps: []
+          },
+          {
+            id: 't-summer-deck',
+            title: 'Power-wash back cedar deck boards',
+            notes: 'Summer-only window (May to Aug) - hidden in November.',
+            previousNotes: [],
+            context: 'Outside',
+            effort: 'Big',
+            estMinutes: 90,
+            seasonWindow: { start: '05-01', end: '08-31' },
+            lastShown: '2026-07-10',
+            skippedStreak: 0,
+            oneThing: false,
+            status: 'active',
+            steps: []
+          },
+          {
+            id: 't-past-due',
+            title: 'Renew passport by mail (DS-82)',
+            notes: 'Do-by date was Oct 10 (25 days ago) - zero red state, asks once gently.',
+            previousNotes: ['Passport photo is already in desk top drawer.'],
+            context: 'Anywhere',
+            effort: 'Medium',
+            estMinutes: 20,
+            doByDate: '2026-10-10',
+            lastShown: '2026-10-12',
+            skippedStreak: 0,
+            oneThing: false,
+            status: 'active',
+            steps: []
+          },
+          // Computer / Work Pool (includes externally pushed GitHub, Gmail & MCP items)
+          {
+            id: 'gh-pr-482',
+            title: 'Review PR #482: Fix SwiftData CloudKit sync race on wake',
+            notes: 'github/adhd-todo · Pushed externally via gh-hook -> MCP',
+            previousNotes: ['Checked out branch locally; only CloudKitCoordinator.swift left to verify.'],
+            context: 'Computer',
+            effort: 'Medium',
+            estMinutes: 15,
+            source: 'GitHub',
+            externalRef: 'github/adhd-todo#482',
+            doByDate: '2026-11-06',
+            lastShown: '2026-11-03',
+            status: 'active',
+            steps: ['Read CloudKit merge policy diff', 'Leave review verdict']
+          },
+          {
+            id: 'gh-ci-479',
+            title: 'Fix failing macOS unit test on PR #479 (DrawEngineTests)',
+            notes: 'github/adhd-todo · Pushed externally via gh-hook -> MCP',
+            previousNotes: [],
+            context: 'Computer',
+            effort: 'Medium',
+            estMinutes: 20,
+            source: 'GitHub',
+            externalRef: 'github/adhd-todo#479',
+            doByDate: '2026-11-05',
+            lastShown: '2026-11-04',
+            status: 'active',
+            steps: []
+          },
+          {
+            id: 'gm-thread-91',
+            title: 'Reply to accountant re: Q4 estimated tax confirmation',
+            notes: 'Gmail · Pushed externally via Apple Shortcut / MCP',
+            previousNotes: ['Q3 voucher amount was $2,400 - confirm same for Q4.'],
+            context: 'Computer',
+            effort: 'Quick',
+            estMinutes: 5,
+            source: 'Gmail',
+            externalRef: 'gmail://thread/91a8f',
+            doByDate: '2026-11-07',
+            lastShown: '2026-11-02',
+            status: 'active',
+            steps: []
+          },
+          {
+            id: 'mcp-copilot-1',
+            title: 'Rotate staging webhook secret in 1Password',
+            notes: 'Added via Copilot CLI MCP (add_task) · Synced to iPhone via CloudKit',
+            previousNotes: ['Vault: Infra-Staging -> item "GitHub Webhook HMAC".'],
+            context: 'Computer',
+            effort: 'Quick',
+            estMinutes: 5,
+            source: 'Copilot MCP',
+            externalRef: 'mcp://copilot-cli/session-9f2a',
+            doByDate: '2026-11-07',
+            lastShown: '2026-11-03',
+            status: 'active',
+            steps: []
+          }
+        ]
+      };
+    }
+
+    let state = createInitialState();
+    state.pullFilter.results = DrawEngine.computePullDraw(state, 'Outside', 'Medium');
+
+    // URL search param state for Variant & Device
+    const urlParams = new URLSearchParams(window.location.search);
+    let currentVariant = (urlParams.get('variant') || 'A').toUpperCase();
+    if (!['A', 'B', 'C'].includes(currentVariant)) currentVariant = 'A';
+    let currentDevice = urlParams.get('device') || 'both'; // 'both' | 'macos' | 'iphone'
+    let activeScenarioId = 'normal';
+
+    const VARIANTS = {
+      A: {
+        key: 'A',
+        name: 'Native Split View + Separate Work Lane',
+        desc: 'macOS NavigationSplitView + iPhone TabView. Keeps Weekly Draw (Quick + Medium + One Thing) strictly separate from the collapsible Weekday Work Lane.'
+      },
+      B: {
+        key: 'B',
+        name: 'Single-Card Zen Deck (Zero List)',
+        desc: 'Shows strictly ONE card at a time on screen. Flip through Quick → Medium → Work without ever seeing a multi-card grid.'
+      },
+      C: {
+        key: 'C',
+        name: 'Context & Energy Matrix Board',
+        desc: 'Ambient macOS desktop board organized by energy/time and context chips, with interactive Menu Bar popover & inline Pull drawer.'
+      }
+    };
+
+    const SCENARIOS = [
+      {
+        id: 'normal',
+        label: '1. Default List View (Title Only)',
+        run: () => {
+          state = createInitialState();
+          state.homeLayout = 'list';
+          state.expandedTaskId = null;
+          state.pullFilter.results = DrawEngine.computePullDraw(state, state.pullFilter.context, state.pullFilter.effort);
+          logAction('Scenario 1: Default List View - shows only task titles + Done / Not Now. Click any task to expand notes & tools.');
+        }
+      },
+      {
+        id: 'card-view-notes',
+        label: '2. Card View + Previous Notes',
+        run: () => {
+          state = createInitialState();
+          state.homeLayout = 'cards';
+          logAction('Scenario 2: Card View - shows your previous notes from yourself, Focus Timer & Break it down at a glance.');
+        }
+      },
+      {
+        id: 'work-computer-pool',
+        label: '3. Computer / Work Pool',
+        run: () => {
+          state = createInitialState();
+          state.nav = 'work';
+          logAction('Scenario 3: Separate Computer / Work Pool (includes externally pushed GitHub, Gmail & MCP tasks).');
+        }
+      },
+      {
+        id: 'skipped-twice',
+        label: '4. Skipped 2x Sheet',
+        run: () => {
+          state = createInitialState();
+          state.weeklyDraw.quickId = 't-return-ups';
+          state.expandedTaskId = 't-return-ups';
+          const t = state.tasks.find(x => x.id === 't-return-ups');
+          t.skippedStreak = 2;
+          t.skipSheetDismissed = false;
+          logAction('Scenario 4: "Drop off Amazon return" was passed over 2x -> gentle 4-option sheet (no guilt badge)');
+        }
+      },
+      {
+        id: 'past-doby',
+        label: '5. 14d Past Do-By (No Red)',
+        run: () => {
+          state = createInitialState();
+          state.weeklyDraw.mediumId = 't-past-due';
+          state.expandedTaskId = 't-past-due';
+          logAction('Scenario 5: Passport renewal is 25 days past do-by date -> top priority, zero red text, 1-time check-in');
+        }
+      },
+      {
+        id: 'first-frost',
+        label: '6. Flip "First Frost" Anchor',
+        run: () => {
+          state = createInitialState();
+          state.anchors['first-frost'] = true;
+          state.weeklyDraw.quickId = 't-faucets';
+          state.expandedTaskId = 't-faucets';
+          logAction('Scenario 6: Flipped "First Frost" anchor ON -> "Shut off exterior hose bibs" enters Life draw with last year\'s notes');
+        }
+      },
+      {
+        id: 'hard-day',
+        label: '7. Hard Day Mode (2-Min)',
+        run: () => {
+          state = createInitialState();
+          state.hardDayMode = true;
+          startTimerForTask('t-smoke', 2);
+          logAction('Scenario 7: Hard Day mode active -> hides everything except 1 tiny task and a 2-minute timer');
+        }
+      },
+      {
+        id: 'mcp-capture',
+        label: '8. External MCP Push',
+        run: () => {
+          state = createInitialState();
+          state.nav = 'mcp';
+          logAction('Scenario 8: External push via Local MCP Server (Copilot, Claude, GitHub CLI, or Gmail Shortcut) -> lands in Computer pool');
+        }
+      }
+    ];
+  </script>
+
+  <!-- =========================================================================
+       ACTIONS & MUTATIONS
+       ========================================================================= -->
+  <script>
+    let timerInterval = null;
+
+    function logAction(msg) {
+      state.lastAction = msg;
+      renderAll();
+    }
+
+    function setVariant(v) {
+      currentVariant = v;
+      const url = new URL(window.location.href);
+      url.searchParams.set('variant', v);
+      window.history.replaceState({}, '', url);
+      renderAll();
+    }
+
+    function cycleDevice() {
+      const order = ['both', 'macos', 'iphone'];
+      currentDevice = order[(order.indexOf(currentDevice) + 1) % order.length];
+      const url = new URL(window.location.href);
+      url.searchParams.set('device', currentDevice);
+      window.history.replaceState({}, '', url);
+      renderAll();
+    }
+
+    function completeTask(taskId, reason = 'Completed') {
+      const t = state.tasks.find(x => x.id === taskId);
+      if (!t) return;
+      if (t.repeatCooldownDays) {
+        const next = new Date(state.today + 'T00:00:00');
+        next.setDate(next.getDate() + t.repeatCooldownDays);
+        t.cooldownUntil = next.toISOString().slice(0, 10);
+        t.lastShown = state.today;
+      } else {
+        t.status = 'done';
+      }
+      t.oneThing = false;
+      if (state.timer.activeTaskId === taskId) {
+        state.timer.activeTaskId = null;
+        state.timer.running = false;
+      }
+      if (state.expandedTaskId === taskId) {
+        state.expandedTaskId = null;
+      }
+      if (state.weeklyDraw.quickId === taskId || state.weeklyDraw.mediumId === taskId) {
+        state.weeklyDraw = DrawEngine.computeWeeklyDraw(state);
+      }
+      state.pullFilter.results = DrawEngine.computePullDraw(state, state.pullFilter.context, state.pullFilter.effort);
+      logAction(`[Done] ${reason}: "${t.title}"`);
+    }
+
+    function skipOrRerollSlot(slotKey, taskId) {
+      const t = state.tasks.find(x => x.id === taskId);
+      if (t) {
+        t.lastShown = state.today;
+        t.skippedStreak = (t.skippedStreak || 0) + 1;
+        // For Computer/Work pool tasks without a fixed weekly slot, snooze until tomorrow on "Not Now"
+        if (slotKey === 'work') {
+          const base = new Date(state.today + 'T00:00:00');
+          base.setDate(base.getDate() + 1);
+          t.snoozedUntil = base.toISOString().slice(0, 10);
+        }
+      }
+      if (state.expandedTaskId === taskId) {
+        state.expandedTaskId = null;
+      }
+      if (slotKey === 'quick' || slotKey === 'medium' || slotKey === 'onething') {
+        const nextDraw = DrawEngine.computeWeeklyDraw(state, [taskId]);
+        if (slotKey === 'quick') state.weeklyDraw.quickId = nextDraw.quickId;
+        else if (slotKey === 'medium') state.weeklyDraw.mediumId = nextDraw.mediumId;
+        else state.weeklyDraw = nextDraw;
+      } else if (slotKey === 'pull') {
+        state.pullFilter.results = DrawEngine.computePullDraw(
+          state,
+          state.pullFilter.context,
+          state.pullFilter.effort,
+          [...state.pullFilter.results, taskId]
+        );
+      }
+
+      logAction(`[Not Now] "${t ? t.title : 'task'}" -> returned to pool with updated lastShown (zero guilt)`);
+    }
+
+    function toggleExpandTask(taskId) {
+      state.expandedTaskId = state.expandedTaskId === taskId ? null : taskId;
+      renderAll();
+    }
+
+    function setHomeLayout(mode) {
+      state.homeLayout = mode;
+      logAction(mode === 'list'
+        ? '[Home Layout] Switched to List View (title-only default; click a task to expand notes & tools)'
+        : '[Home Layout] Switched to Card View (at-a-glance previous notes, Focus Timer & Break it down)');
+    }
+
+    function addSelfNote(taskId) {
+      const inp = document.getElementById(`self-note-input-${taskId}`);
+      const val = (inp?.value || '').trim();
+      if (!val) return;
+      const t = state.tasks.find(x => x.id === taskId);
+      if (!t) return;
+      if (!t.previousNotes) t.previousNotes = [];
+      t.previousNotes.unshift(`Nov 2026: ${val}`);
+      logAction(`[Note Saved] Added note for future-you on "${t.title}"`);
+    }
+
+    function snoozeTask(taskId, preset) {
+      const t = state.tasks.find(x => x.id === taskId);
+      if (!t) return;
+      const base = new Date(state.today + 'T00:00:00');
+      if (preset === 'tomorrow') base.setDate(base.getDate() + 1);
+      else if (preset === 'next-week') base.setDate(base.getDate() + 7);
+      else if (preset === 'next-season') base.setMonth(base.getMonth() + 3);
+      t.snoozedUntil = base.toISOString().slice(0, 10);
+      t.lastShown = state.today;
+      if (state.weeklyDraw.quickId === taskId || state.weeklyDraw.mediumId === taskId) {
+        state.weeklyDraw = DrawEngine.computeWeeklyDraw(state, [taskId]);
+      }
+      state.pullFilter.results = DrawEngine.computePullDraw(state, state.pullFilter.context, state.pullFilter.effort);
+      closeModal();
+      logAction(`[Snoozed] "${t.title}" until ${t.snoozedUntil} (hidden from draws until then)`);
+    }
+
+    function toggleOneThing(taskId) {
+      const target = state.tasks.find(x => x.id === taskId);
+      if (!target) return;
+      const nextVal = !target.oneThing;
+      state.tasks.forEach(t => { t.oneThing = false; });
+      target.oneThing = nextVal;
+      logAction(nextVal ? `[One Thing] Set "${target.title}" as today's One Thing` : `Cleared One Thing flag`);
+    }
+
+    function startTimerForTask(taskId, minutesOverride) {
+      const t = state.tasks.find(x => x.id === taskId);
+      if (!t) return;
+      const mins = minutesOverride || t.estMinutes || (t.effort === 'Quick' ? 5 : 20);
+      state.timer.activeTaskId = taskId;
+      state.timer.totalSec = mins * 60;
+      state.timer.remainingSec = mins * 60;
+      state.timer.running = true;
+      ensureTimerInterval();
+      logAction(`[Focus Timer] Started ${mins}m focus session for "${t.title}" (stopping early still counts!)`);
+    }
+
+    function stopTimerEarly() {
+      const t = state.tasks.find(x => x.id === state.timer.activeTaskId);
+      const elapsedMin = Math.max(1, Math.round((state.timer.totalSec - state.timer.remainingSec) / 60));
+      state.timer.running = false;
+      state.timer.activeTaskId = null;
+      if (t) {
+        if (!t.previousNotes) t.previousNotes = [];
+        t.previousNotes.unshift(`Today: Did a ${elapsedMin}m focus session (stopped early, still counts).`);
+      }
+      logAction(`[Focus Saved] Saved ${elapsedMin}m focus note onto "${t ? t.title : 'task'}" - stopping early always counts!`);
+    }
+
+    function ensureTimerInterval() {
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        if (state.timer.running && state.timer.remainingSec > 0) {
+          state.timer.remainingSec -= 1;
+          const digits = document.querySelectorAll('.live-timer-readout');
+          digits.forEach(el => { el.textContent = formatSeconds(state.timer.remainingSec); });
+        }
+      }, 1000);
+    }
+
+    function formatSeconds(sec) {
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function breakDownTaskAI(taskId) {
+      const t = state.tasks.find(x => x.id === taskId);
+      if (!t) return;
+      t.steps = [
+        `Open/gather just the first thing needed for "${t.title.slice(0, 28)}..." (2m)`,
+        `Do one 5-minute pass without worrying about finishing`,
+        `Put tools/tabs away or mark done`
+      ];
+      t.skippedStreak = 0;
+      t.skipSheetDismissed = true;
+      logAction(`[Copilot SDK · macOS] Broke "${t.title}" into 3 concrete 5-minute starter steps (synced to iPhone)`);
+    }
+
+    function archiveTask(taskId) {
+      const t = state.tasks.find(x => x.id === taskId);
+      if (!t) return;
+      t.status = 'archived';
+      state.weeklyDraw = DrawEngine.computeWeeklyDraw(state);
+      logAction(`[Archived] Let go of "${t.title}" (archived quietly, zero guilt)`);
+    }
+
+    function parseBrainDump(text) {
+      const lower = text.toLowerCase();
+      if (lower.includes('worthless') || lower.includes('hate myself') || lower.includes('failing at everything') || lower.includes('can\'t do anything')) {
+        state.gentleCrisisBanner = {
+          message: 'Hey - it sounds like today is heavy. You don\'t owe the list anything right now. Want to switch to Hard Day mode (just one 2-minute step) or take a breather?',
+          supportNote: 'If you ever need someone in your corner right now: call or text 988 (US/Canada Lifeline).'
+        };
+      } else {
+        state.gentleCrisisBanner = null;
+      }
+
+      const chunks = text
+        .split(/[,.;\n]+|\band\b/i)
+        .map(s => s.trim())
+        .filter(s => s.length > 4);
+
+      state.brainDumpProposals = chunks.map((chunk, idx) => {
+        const cLower = chunk.toLowerCase();
+        let context = 'Anywhere';
+        let effort = 'Quick';
+        if (cLower.includes('gutter') || cLower.includes('yard') || cLower.includes('garage') || cLower.includes('porch')) {
+          context = 'Outside'; effort = 'Medium';
+        } else if (cLower.includes('tab') || cLower.includes('mac') || cLower.includes('email') || cLower.includes('pr')) {
+          context = 'Computer'; effort = 'Quick';
+        } else if (cLower.includes('pharmacy') || cLower.includes('store') || cLower.includes('drop') || cLower.includes('call')) {
+          context = 'Errands'; effort = 'Quick';
+        }
+        const cleanTitle = chunk.replace(/^(need to|i should|have to)\s+/i, '');
+        return {
+          id: `bd-${Date.now()}-${idx}`,
+          title: cleanTitle.charAt(0).toUpperCase() + cleanTitle.slice(1),
+          context,
+          effort
+        };
+      });
+      logAction(`[Copilot SDK · macOS] Brain Dump extracted ${state.brainDumpProposals.length} candidate tasks with auto-tagged context & effort`);
+    }
+
+    function acceptBrainDumpProposal(propId) {
+      const idx = state.brainDumpProposals.findIndex(p => p.id === propId);
+      if (idx === -1) return;
+      const p = state.brainDumpProposals[idx];
+      state.tasks.unshift({
+        id: `t-${Date.now()}`,
+        title: p.title,
+        notes: 'Added from GitHub Copilot SDK Brain Dump (macOS)',
+        context: p.context,
+        effort: p.effort,
+        estMinutes: p.effort === 'Quick' ? 5 : 20,
+        status: 'active',
+        steps: []
+      });
+      state.brainDumpProposals.splice(idx, 1);
+      logAction(`[Added] "${p.title}" (${p.context} · ${p.effort}) to the Pool`);
+    }
+
+    function simulateMcpToolCall(agentSource, toolName, customPayload) {
+      if (toolName === 'add_task') {
+        const title = customPayload?.title || (agentSource === 'Copilot MCP'
+          ? 'Follow up on flaky SwiftData migration test in PR #489'
+          : 'Send revised architecture notes to design partner');
+        const context = customPayload?.context || 'Computer';
+        const effort = customPayload?.effort || 'Quick';
+        const newTask = {
+          id: `mcp-${Date.now()}`,
+          title,
+          notes: `Pushed via local MCP Server (${agentSource} -> add_task) · Synced to iPhone via CloudKit`,
+          context,
+          effort,
+          estMinutes: effort === 'Quick' ? 5 : 20,
+          source: agentSource,
+          externalRef: agentSource === 'Copilot MCP' ? 'mcp://copilot/add_task' : 'mcp://claude/add_task',
+          doByDate: customPayload?.doByDate || '2026-11-08',
+          lastShown: state.today,
+          status: 'active',
+          steps: []
+        };
+        state.tasks.unshift(newTask);
+        logAction(`[${agentSource}] Executed MCP tool add_task("${title}") -> added to Pool & Incoming lane`);
+      } else if (toolName === 'brain_dump') {
+        state.nav = 'braindump';
+        state.brainDumpText = customPayload?.text || 'Finish release notes for v0.2, check winter tire pressure, and reply to Alex about Thursday.';
+        parseBrainDump(state.brainDumpText);
+        logAction(`[${agentSource}] Executed MCP tool brain_dump -> routed to GitHub Copilot SDK parser`);
+      }
+    }
+  </script>
+
+  <!-- =========================================================================
+       RENDER HELPERS & SHARED COMPONENTS
+       ========================================================================= -->
+  <script>
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // Inline Lucide SVG icon helper (zero external dependencies)
+    const LUCIDE_PATHS = {
+      'flame': '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+      'star': '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+      'zap': '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+      'wrench': '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+      'check': '<path d="M20 6 9 17l-5-5"/>',
+      'timer': '<line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/>',
+      'clock': '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+      'moon': '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+      'sun': '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+      'rotate-ccw': '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+      'sparkles': '<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/>',
+      'brain': '<path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/>',
+      'layers': '<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+      'home': '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+      'dices': '<rect width="12" height="12" x="2" y="10" rx="2" ry="2"/><path d="m17.92 14 3.5-3.5a2.24 2.24 0 0 0 0-3l-5-4.92a2.24 2.24 0 0 0-3 0L10 6"/><path d="M6 18h.01"/><path d="M10 14h.01"/><path d="M15 6h.01"/><path d="M18 9h.01"/>',
+      'sprout': '<path d="M7 20h10"/><path d="M10 20c5.5-2.5.8-6.4 3-10"/><path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z"/><path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z"/>',
+      'bar-chart-2': '<line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/>',
+      'search': '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+      'terminal': '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>',
+      'mic': '<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/>',
+      'headphones': '<path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/>',
+      'anchor': '<path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/><circle cx="12" cy="5" r="3"/>',
+      'leaf': '<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>',
+      'heart': '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
+      'monitor': '<rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>',
+      'smartphone': '<rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/>',
+      'plus': '<path d="M5 12h14"/><path d="M12 5v14"/>',
+      'x': '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+      'briefcase': '<rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
+      'waves': '<path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>',
+      'bot': '<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>',
+      'command': '<path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"/>',
+      'cloud': '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+      'git-pull-request': '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" x2="6" y1="9" y2="21"/>',
+      'mail': '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
+      'eye': '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>',
+      'eye-off': '<path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.447 10.447 0 0 1-1.449 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/>',
+      'list': '<line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/>',
+      'layout-grid': '<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>',
+      'chevron-down': '<path d="m6 9 6 6 6-6"/>',
+      'chevron-right': '<path d="m9 18 6-6-6-6"/>',
+      'file-text': '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>'
+    };
+
+    function icon(name, size = 14) {
+      const p = LUCIDE_PATHS[name] || LUCIDE_PATHS['sparkles'];
+      return `<svg class="lucide lucide-${name}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+    }
+
+    function renderWeekDots() {
+      return `
+        <div style="display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap;">
+          <div style="display:inline-flex; background:var(--bg-canvas); padding:2px; border-radius:7px; border:1px solid var(--border);">
+            <button class="btn btn-sm ${state.homeLayout === 'list' ? 'btn-primary' : 'btn-ghost'}" style="border:none; padding:4px 9px;" onclick="setHomeLayout('list')" title="Default: Title only + Done / Not Now. Click a row to expand.">
+              ${icon('list', 13)} List View
+            </button>
+            <button class="btn btn-sm ${state.homeLayout === 'cards' ? 'btn-primary' : 'btn-ghost'}" style="border:none; padding:4px 9px;" onclick="setHomeLayout('cards')" title="At-a-glance cards with previous notes, Focus Timer & Break it down">
+              ${icon('layout-grid', 13)} Card View
+            </button>
+          </div>
+          <button class="btn btn-sm" onclick="toggleHideTags()" title="Hide or show tags for a cleaner surface">
+            ${state.hideTags ? `${icon('eye', 13)} Show Tags` : `${icon('eye-off', 13)} Hide Tags`}
+          </button>
+        </div>
+      `;
+    }
+
+    function toggleHideTags() {
+      state.hideTags = !state.hideTags;
+      logAction(state.hideTags ? '[Clean Surface] Hidden all metadata tags on cards' : '[Tags Visible] Showing context, effort & season tags');
+    }
+
+    function renderActiveTimerBanner() {
+      if (!state.timer.activeTaskId) return '';
+      const t = state.tasks.find(x => x.id === state.timer.activeTaskId);
+      if (!t) return '';
+      return `
+        <div class="timer-banner">
+          <div>
+            <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--accent); font-weight:600;">
+              Active Focus Session · ${escapeHtml(state.timer.sound)}
+            </div>
+            <div style="font-weight:600; font-size:14.5px;">${escapeHtml(t.title)}</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <span class="timer-digits live-timer-readout">${formatSeconds(state.timer.remainingSec)}</span>
+            <button class="btn btn-sm" onclick="cycleAmbientSound()">${icon('headphones', 13)} ${escapeHtml(state.timer.sound)}</button>
+            <button class="btn btn-sm" onclick="stopTimerEarly()">Stop Early (Still Counts)</button>
+            <button class="btn btn-sm btn-done" onclick="completeTask('${t.id}')">${icon('check', 13)} Done</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function cycleAmbientSound() {
+      const sounds = ['Brown Noise', 'White Noise', 'Soft Rain', 'Lo-Fi Beats', 'Off'];
+      const next = sounds[(sounds.indexOf(state.timer.sound) + 1) % sounds.length];
+      state.timer.sound = next;
+      logAction(`[Audio] Switched focus ambient sound to ${next}`);
+    }
+
+    function renderPreviousNotesSection(task) {
+      const prev = task.previousNotes || [];
+      const hasNotes = Boolean(task.notes) || prev.length > 0;
+      return `
+        <div style="background:var(--bg-canvas); border:1px solid var(--border); border-radius:7px; padding:9px 11px; display:flex; flex-direction:column; gap:6px;">
+          <div style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); display:flex; align-items:center; gap:5px;">
+            ${icon('file-text', 12)} Notes from Yourself
+          </div>
+          ${task.notes ? `<div style="font-size:12.5px; color:var(--text-primary);">${escapeHtml(task.notes)}</div>` : ''}
+          ${prev.map(n => `
+            <div style="font-size:12px; color:var(--text-secondary); padding-left:8px; border-left:2px solid var(--border-strong);">
+              ${escapeHtml(n)}
+            </div>
+          `).join('')}
+          ${!hasNotes ? `<div style="font-size:12px; color:var(--text-muted);">No previous notes yet. Leave a note for future-you below.</div>` : ''}
+          <div style="display:flex; gap:6px; margin-top:2px;">
+            <input class="input" id="self-note-input-${task.id}" style="padding:5px 8px; font-size:12px;" placeholder="Leave a note for next time (e.g. filter size, where spare is)..." />
+            <button class="btn btn-sm" onclick="addSelfNote('${task.id}')">Save Note</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderTaskListRow(task, slotLabel, slotKey) {
+      if (!task) return '';
+      const isExpanded = state.expandedTaskId === task.id;
+      const ev = DrawEngine.evaluateEligibility(task, state);
+      const noteCount = (task.previousNotes ? task.previousNotes.length : 0) + (task.notes ? 1 : 0);
+
+      return `
+        <div class="task-card ${task.oneThing ? 'one-thing-card' : ''}" style="padding:11px 14px; gap:10px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+            <div style="display:flex; align-items:center; gap:9px; flex:1; cursor:pointer;" onclick="toggleExpandTask('${task.id}')">
+              <span style="color:var(--text-muted); display:inline-flex;">
+                ${isExpanded ? icon('chevron-down', 15) : icon('chevron-right', 15)}
+              </span>
+              <div style="display:flex; flex-direction:column; gap:2px;">
+                <div style="font-weight:600; font-size:15px; color:var(--text-primary); display:flex; align-items:center; gap:7px; flex-wrap:wrap;">
+                  ${task.oneThing ? `<span style="color:var(--accent); display:inline-flex;" title="Today's One Thing">${icon('flame', 14)}</span>` : ''}
+                  <span>${escapeHtml(task.title)}</span>
+                  ${(!state.hideTags && noteCount > 0 && !isExpanded) ? `
+                    <span style="font-size:11px; font-weight:500; color:var(--text-muted); display:inline-flex; align-items:center; gap:3px;">
+                      ${icon('file-text', 11)} ${noteCount} ${noteCount === 1 ? 'note' : 'notes'}
+                    </span>
+                  ` : ''}
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+              <button class="btn btn-sm btn-done" onclick="completeTask('${task.id}')">
+                ${icon('check', 13)} Done
+              </button>
+              <button class="btn btn-sm" onclick="skipOrRerollSlot('${slotKey}', '${task.id}')" title="Swap or defer without guilt">
+                ${icon('rotate-ccw', 13)} Not Now
+              </button>
+            </div>
+          </div>
+
+          ${isExpanded ? `
+            <div style="padding-top:10px; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:10px;">
+              ${!state.hideTags ? `
+                <div class="task-meta">
+                  <span class="chip">${slotLabel}</span>
+                  <span class="chip ${task.effort.toLowerCase()}">${escapeHtml(task.effort)} · ${task.estMinutes || 10}m</span>
+                  <span class="chip">${escapeHtml(task.context)}</span>
+                  ${task.source ? `<span class="chip source">${icon(task.source.includes('MCP') ? 'terminal' : task.source === 'GitHub' ? 'git-pull-request' : 'mail', 11)} ${escapeHtml(task.source)}</span>` : ''}
+                  ${task.seasonWindow ? `<span class="chip">${icon('leaf', 11)} Season ${task.seasonWindow.start}->${task.seasonWindow.end}</span>` : ''}
+                  ${task.eventAnchor ? `<span class="chip">${icon('anchor', 11)} ${escapeHtml(task.eventAnchor)}</span>` : ''}
+                  ${task.doByDate ? `<span class="chip">Target ${escapeHtml(task.doByDate)}</span>` : ''}
+                </div>
+              ` : ''}
+
+              ${renderPreviousNotesSection(task)}
+
+              ${task.steps && task.steps.length > 0 ? `
+                <div style="background:var(--bg-canvas); padding:8px 10px; border-radius:6px; font-size:12px; color:var(--text-secondary);">
+                  <div style="font-weight:600; color:var(--text-primary); margin-bottom:4px; display:flex; align-items:center; gap:5px;">
+                    ${icon('sparkles', 12)} Copilot SDK Steps (${task.steps.length}):
+                  </div>
+                  ${task.steps.map(s => `<div>• ${escapeHtml(s)}</div>`).join('')}
+                </div>
+              ` : ''}
+
+              ${ev.twiceSkippedPrompt ? `
+                <div class="gentle-banner">
+                  <div class="gentle-banner-title">Passed over twice - want a lighter way in?</div>
+                  <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    <button class="btn btn-sm btn-primary" onclick="startTimerForTask('${task.id}', 5)">Just 5 mins</button>
+                    <button class="btn btn-sm" onclick="breakDownTaskAI('${task.id}')">${icon('sparkles', 12)} Break it down</button>
+                    <button class="btn btn-sm" onclick="snoozeTask('${task.id}', 'next-week')">Next week</button>
+                    <button class="btn btn-sm" onclick="archiveTask('${task.id}')">Let it go</button>
+                  </div>
+                </div>
+              ` : ''}
+
+              ${ev.gentlePastDuePrompt ? `
+                <div class="gentle-banner">
+                  <div class="gentle-banner-title">Do-by date was 2+ weeks ago (never overdue). Still want this?</div>
+                  <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    <button class="btn btn-sm" onclick="ackPastDue('${task.id}')">Keep in pool</button>
+                    <button class="btn btn-sm" onclick="snoozeTask('${task.id}', 'next-week')">Move date +1w</button>
+                    <button class="btn btn-sm" onclick="archiveTask('${task.id}')">Let it go</button>
+                  </div>
+                </div>
+              ` : ''}
+
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                  <button class="btn btn-sm btn-primary" onclick="startTimerForTask('${task.id}')">
+                    ${icon('timer', 13)} Focus Timer (${task.estMinutes || 10}m)
+                  </button>
+                  <button class="btn btn-sm" onclick="breakDownTaskAI('${task.id}')">
+                    ${icon('sparkles', 13)} Break it down
+                  </button>
+                  <button class="btn btn-sm" onclick="openSnoozeModal('${task.id}')">
+                    ${icon('moon', 13)} Snooze...
+                  </button>
+                </div>
+                <button class="btn btn-sm btn-ghost" onclick="toggleOneThing('${task.id}')">
+                  ${task.oneThing ? `${icon('flame', 13)} One Thing` : `${icon('star', 13)} Make One Thing`}
+                </button>
+              </div>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function renderTaskCard(task, slotLabel, slotKey) {
+      if (!task) {
+        return `
+          <div class="task-card">
+            <div class="task-slot-label">${ slotLabel }</div>
+            <div style="color:var(--text-muted); font-size:13px; padding:12px 0;">
+              No matching task in pool for this slot right now.
+            </div>
+          </div>
+        `;
+      }
+      const ev = DrawEngine.evaluateEligibility(task, state);
+
+      return `
+        <div class="task-card ${task.oneThing ? 'one-thing-card' : ''}">
+          <div>
+            <div class="task-slot-label">
+              <span style="display:inline-flex; align-items:center; gap:5px;">${slotLabel}</span>
+              <button class="btn-ghost" style="font-size:11.5px; padding:2px 6px; border-radius:4px; display:inline-flex; align-items:center; gap:4px;" onclick="toggleOneThing('${task.id}')" title="Mark as today's One Thing">
+                ${task.oneThing ? `${icon('flame', 13)} One Thing` : `${icon('star', 13)} Make One Thing`}
+              </button>
+            </div>
+            <div class="task-title" style="margin-top:6px;" onclick="openTaskModal('${task.id}')">
+              ${escapeHtml(task.title)}
+            </div>
+          </div>
+
+          ${!state.hideTags ? `
+            <div class="task-meta">
+              <span class="chip ${task.effort.toLowerCase()}">${escapeHtml(task.effort)} · ${task.estMinutes || 10}m</span>
+              <span class="chip">${escapeHtml(task.context)}</span>
+              ${task.source ? `<span class="chip source">${icon(task.source.includes('MCP') ? 'terminal' : task.source === 'GitHub' ? 'git-pull-request' : 'mail', 11)} ${escapeHtml(task.source)}</span>` : ''}
+              ${task.seasonWindow ? `<span class="chip">${icon('leaf', 11)} Season ${task.seasonWindow.start}->${task.seasonWindow.end}</span>` : ''}
+              ${task.eventAnchor ? `<span class="chip">${icon('anchor', 11)} ${escapeHtml(task.eventAnchor)}</span>` : ''}
+              ${task.doByDate ? `<span class="chip">Target ${escapeHtml(task.doByDate)}</span>` : ''}
+            </div>
+          ` : ''}
+
+          ${renderPreviousNotesSection(task)}
+
+          ${task.steps && task.steps.length > 0 ? `
+            <div style="background:var(--bg-canvas); padding:8px 10px; border-radius:6px; font-size:12px; color:var(--text-secondary);">
+              <div style="font-weight:600; color:var(--text-primary); margin-bottom:4px; display:flex; align-items:center; gap:5px;">
+                ${icon('sparkles', 12)} Copilot SDK Steps (${task.steps.length}):
+              </div>
+              ${task.steps.map(s => `<div>• ${escapeHtml(s)}</div>`).join('')}
+            </div>
+          ` : ''}
+
+          ${ev.twiceSkippedPrompt ? `
+            <div class="gentle-banner">
+              <div class="gentle-banner-title">Passed over twice - want a lighter way in?</div>
+              <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button class="btn btn-sm btn-primary" onclick="startTimerForTask('${task.id}', 5)">Just 5 mins</button>
+                <button class="btn btn-sm" onclick="breakDownTaskAI('${task.id}')">${icon('sparkles', 12)} Break it down</button>
+                <button class="btn btn-sm" onclick="snoozeTask('${task.id}', 'next-week')">Next week</button>
+                <button class="btn btn-sm" onclick="archiveTask('${task.id}')">Let it go</button>
+              </div>
+            </div>
+          ` : ''}
+
+          ${ev.gentlePastDuePrompt ? `
+            <div class="gentle-banner">
+              <div class="gentle-banner-title">Do-by date was 2+ weeks ago (never overdue). Still want this?</div>
+              <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button class="btn btn-sm" onclick="ackPastDue('${task.id}')">Keep in pool</button>
+                <button class="btn btn-sm" onclick="snoozeTask('${task.id}', 'next-week')">Move date +1w</button>
+                <button class="btn btn-sm" onclick="archiveTask('${task.id}')">Let it go</button>
+              </div>
+            </div>
+          ` : ''}
+
+          <div class="task-actions" style="justify-content:space-between;">
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button class="btn btn-sm btn-done" onclick="completeTask('${task.id}')">
+                ${icon('check', 13)} Done
+              </button>
+              <button class="btn btn-sm" onclick="skipOrRerollSlot('${slotKey}', '${task.id}')">
+                ${icon('rotate-ccw', 13)} Not Now
+              </button>
+            </div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button class="btn btn-sm" onclick="startTimerForTask('${task.id}')">${icon('timer', 13)} Focus Timer</button>
+              <button class="btn btn-sm" onclick="breakDownTaskAI('${task.id}')">${icon('sparkles', 13)} Break it down</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function ackPastDue(taskId) {
+      const t = state.tasks.find(x => x.id === taskId);
+      if (t) t.pastDueAcked = true;
+      logAction(`Kept "${t.title}" in pool at top priority without nagging again`);
+    }
+
+    function renderDrawnItems(items) {
+      if (state.homeLayout === 'list') {
+        return `
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            ${items.map(it => renderTaskListRow(it.task, it.label, it.key)).join('')}
+          </div>
+        `;
+      }
+      return `
+        <div class="card-grid">
+          ${items.map(it => renderTaskCard(it.task, it.label, it.key)).join('')}
+        </div>
+      `;
+    }
+
+    /* =========================================================================
+       SUB-VIEWS (Pull, Pool, Brain Dump, MCP, Hours, Habits, Review)
+       ========================================================================= */
+    function renderMainContentView(compact = false) {
+      if (state.hardDayMode) {
+        const easyTask = state.tasks.find(t => t.id === state.timer.activeTaskId)
+          || state.tasks.find(t => t.status === 'active' && t.effort === 'Quick')
+          || state.tasks[0];
+        return `
+          <div class="hard-day-box">
+            <span class="chip onething">${icon('waves', 12)} Hard Day Mode · Safety Net</span>
+            <div class="hard-day-title">One tiny thing. Two minutes. Stopping early counts.</div>
+            <div class="hard-day-sub">
+              Everything else is hidden and safe. Nothing is overdue.
+            </div>
+            ${easyTask ? `
+              <div class="task-card" style="max-width:420px; width:100%; text-align:left;">
+                <div class="task-slot-label">2-Minute Gentle Starter</div>
+                <div class="task-title">${escapeHtml(easyTask.title)}</div>
+                <div class="task-actions">
+                  <button class="btn btn-sm btn-done" onclick="completeTask('${easyTask.id}')">${icon('check', 13)} Did 2 mins (Done!)</button>
+                  <button class="btn btn-sm" onclick="startTimerForTask('${easyTask.id}', 2)">${icon('timer', 13)} 2m Timer</button>
+                  <button class="btn btn-sm" onclick="skipOrRerollSlot('quick', '${easyTask.id}')">${icon('rotate-ccw', 13)} Pick Even Smaller</button>
+                </div>
+              </div>
+            ` : ''}
+            <button class="btn btn-sm" onclick="toggleHardDay()">Exit Hard Day Mode</button>
+          </div>
+        `;
+      }
+
+      if (state.nav === 'work') return renderWorkView(compact);
+      if (state.nav === 'pull') return renderPullView();
+      if (state.nav === 'pool') return renderPoolView();
+      if (state.nav === 'braindump') return renderBrainDumpView(compact);
+      if (state.nav === 'mcp') return renderMcpView(compact);
+      return renderHomeView(compact);
+    }
+
+    function renderHomeView(compact = false) {
+      const quickTask = state.tasks.find(t => t.id === state.weeklyDraw.quickId && t.status === 'active');
+      const mediumTask = state.tasks.find(t => t.id === state.weeklyDraw.mediumId && t.status === 'active');
+      const oneThingTask = state.tasks.find(
+        t => t.oneThing && t.status === 'active' && t.context !== 'Computer' && !t.source &&
+             t.id !== state.weeklyDraw.quickId && t.id !== state.weeklyDraw.mediumId
+      );
+
+      const items = [
+        oneThingTask ? { task: oneThingTask, label: `${icon('flame', 13)} Today's One Thing`, key: 'onething' } : null,
+        quickTask ? { task: quickTask, label: `${icon('zap', 13)} Quick Slot (~5m)`, key: 'quick' } : null,
+        mediumTask ? { task: mediumTask, label: `${icon('wrench', 13)} Medium Slot (~20m)`, key: 'medium' } : null
+      ].filter(Boolean);
+
+      return `
+        ${renderActiveTimerBanner()}
+
+        <div class="top-bar">
+          <div>
+            <h2 style="font-size:19px; font-weight:700;">This Week's Draw · Life Pool</h2>
+            <p class="section-subtitle">
+              ${state.homeLayout === 'list'
+                ? 'Title-only by default. Click a task to expand previous notes, Focus Timer & Break it down.'
+                : 'Card View: showing previous notes from yourself, Focus Timer & Break it down at a glance.'}
+            </p>
+          </div>
+          ${renderWeekDots()}
+        </div>
+
+        ${renderDrawnItems(items)}
+
+        <div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-elevated); padding:10px 14px; border-radius:var(--radius-sm); border:1px solid var(--border); flex-wrap:wrap; gap:8px;">
+          <span style="font-size:12.5px; color:var(--text-secondary);">
+            Want a different pair or sitting at your Mac for work?
+          </span>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-sm" onclick="rerollBothWeekly()">${icon('rotate-ccw', 13)} Reroll Life Pair</button>
+            <button class="btn btn-sm" onclick="setNav('pull')">${icon('dices', 13)} I Have Time (Pull)</button>
+            <button class="btn btn-sm btn-primary" onclick="setNav('work')">${icon('monitor', 13)} Switch to Computer / Work Pool</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderWorkView(compact = false) {
+      const workDraw = DrawEngine.computeWorkDraw(state);
+      const items = workDraw.visible.map((t, i) => ({
+        task: t,
+        label: t.source
+          ? `${icon(t.source.includes('MCP') ? 'terminal' : t.source === 'GitHub' ? 'git-pull-request' : 'mail', 13)} ${escapeHtml(t.source)} · ${escapeHtml(t.externalRef || 'Pushed')}`
+          : `${icon('monitor', 13)} Computer Task #${i + 1}`,
+        key: 'work'
+      }));
+
+      return `
+        ${renderActiveTimerBanner()}
+
+        <div class="top-bar">
+          <div>
+            <h2 style="font-size:19px; font-weight:700;">Computer / Weekday Work Pool</h2>
+            <p class="section-subtitle">
+              Separate from Life. Holds Computer tasks + externally pushed GitHub, Gmail, Copilot &amp; Claude items (max 3 shown).
+            </p>
+          </div>
+          ${renderWeekDots()}
+        </div>
+
+        ${!state.workHoursOn ? `
+          <div class="task-card" style="text-align:center; padding:26px;">
+            <div class="task-title">Off Duty - Computer &amp; Work Pool is Tucked Away</div>
+            <div class="task-notes" style="margin-top:4px;">Your Life Draw stays completely separate. Turn Work Stream back on whenever you're at your desk.</div>
+            <div style="margin-top:10px;">
+              <button class="btn btn-sm btn-primary" onclick="toggleWorkDuty()">${icon('sun', 13)} Go On Duty</button>
+            </div>
+          </div>
+        ` : `
+          ${renderDrawnItems(items)}
+          ${workDraw.overflowCount > 0 ? `
+            <div class="task-card" style="border-style:dashed;">
+              <div class="task-slot-label">Volume Cap Protection (&gt;${state.dailyIncomingCap}/day)</div>
+              <div class="task-title">Triage ${workDraw.overflowCount} additional pushed notifications</div>
+              <div class="task-notes">Bundled automatically so external pushes never flood your Computer pool.</div>
+              <div class="task-actions">
+                <button class="btn btn-sm btn-done" onclick="clearOverflowNotifications()">${icon('check', 13)} Triage All (${workDraw.overflowCount})</button>
+              </div>
+            </div>
+          ` : ''}
+        `}
+
+        <div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-elevated); padding:10px 14px; border-radius:var(--radius-sm); border:1px solid var(--border); flex-wrap:wrap; gap:8px;">
+          <span style="font-size:12.5px; color:var(--text-secondary);">
+            GitHub &amp; Gmail items are pushed externally via MCP / CLI rather than polled inside the app.
+          </span>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-sm" onclick="setNav('mcp')">${icon('terminal', 13)} Simulate External Push</button>
+            <button class="btn btn-sm" onclick="toggleWorkDuty()">
+              ${state.workHoursOn ? `${icon('moon', 13)} Off Duty` : `${icon('sun', 13)} On Duty`}
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderPullView() {
+      const contexts = ['Any', 'Outside', 'Errands', 'Anywhere', 'Computer'];
+      const efforts = ['Any', 'Quick', 'Medium', 'Big'];
+      const tasks = state.pullFilter.results
+        .map(id => state.tasks.find(t => t.id === id))
+        .filter(Boolean);
+      const items = tasks.map((t, idx) => ({
+        task: t,
+        label: `Pull Option ${idx + 1} (${t.context})`,
+        key: 'pull'
+      }));
+
+      return `
+        ${renderActiveTimerBanner()}
+        <div class="top-bar">
+          <div>
+            <h2 style="font-size:19px; font-weight:700;">I Have Time (On-Demand Pull Draw)</h2>
+            <p class="section-subtitle">Pick your context and energy/time. At most 3 options. Reroll freely.</p>
+          </div>
+          ${renderWeekDots()}
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:10px; background:var(--bg-elevated); padding:14px; border-radius:var(--radius-md); border:1px solid var(--border);">
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <span style="font-size:12px; font-weight:600; width:70px; color:var(--text-secondary);">Pool:</span>
+            ${contexts.map(c => `
+              <span class="chip selectable ${state.pullFilter.context === c ? 'selected' : ''}" onclick="updatePullFilter('${c}', null)">
+                ${c === 'Computer' ? 'Computer / Work' : c}
+              </span>
+            `).join('')}
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <span style="font-size:12px; font-weight:600; width:70px; color:var(--text-secondary);">Time:</span>
+            ${efforts.map(e => `
+              <span class="chip selectable ${state.pullFilter.effort === e ? 'selected' : ''}" onclick="updatePullFilter(null, '${e}')">
+                ${e === 'Quick' ? 'Quick (~5m)' : e === 'Medium' ? 'Medium (~20m)' : e === 'Big' ? 'Big (1h+)' : 'Any Time'}
+              </span>
+            `).join('')}
+            <button class="btn btn-sm btn-primary" style="margin-left:auto;" onclick="rerollPull()">${icon('dices', 13)} Reroll Set</button>
+          </div>
+        </div>
+
+        ${items.length > 0 ? renderDrawnItems(items) : `
+          <div class="task-card" style="text-align:center; padding:28px;">
+            <div class="task-title">Nothing in the pool matches (${state.pullFilter.context} · ${state.pullFilter.effort}) right now</div>
+            <div class="task-notes">Want to widen the filter to Any Context + Any Time?</div>
+            <div style="margin-top:10px;">
+              <button class="btn btn-sm btn-primary" onclick="updatePullFilter('Any', 'Any')">Widen Filter</button>
+            </div>
+          </div>
+        `}
+      `;
+    }
+
+    function renderPoolView() {
+      const activePoolTab = state.poolFilter.pool || 'life';
+      const filtered = state.tasks.filter(t => {
+        const isWork = t.context === 'Computer' || Boolean(t.source);
+        if (activePoolTab === 'life' && isWork) return false;
+        if (activePoolTab === 'work' && !isWork) return false;
+        if (state.poolFilter.context !== 'All' && t.context !== state.poolFilter.context) return false;
+        return true;
+      });
+
+      const lifeCount = state.tasks.filter(t => t.context !== 'Computer' && !t.source && t.status === 'active').length;
+      const workCount = state.tasks.filter(t => (t.context === 'Computer' || Boolean(t.source)) && t.status === 'active').length;
+
+      return `
+        <div class="top-bar">
+          <div>
+            <h2 style="font-size:19px; font-weight:700;">Two Separate Pools: Life vs. Computer / Work</h2>
+            <p class="section-subtitle">Out-of-season &amp; snoozed tasks stay hidden from Home draws until eligible.</p>
+          </div>
+          <button class="btn btn-sm btn-primary" onclick="openQuickCaptureModal()">${icon('plus', 13)} Add Task (Cmd+K)</button>
+        </div>
+
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:space-between;">
+          <div style="display:inline-flex; background:var(--bg-elevated); padding:3px; border-radius:8px; border:1px solid var(--border);">
+            <button class="btn btn-sm ${activePoolTab === 'life' ? 'btn-primary' : 'btn-ghost'}" style="border:none;" onclick="setPoolTab('life')">
+              ${icon('home', 13)} Life Pool (${lifeCount} active · Outside, Errands, Anywhere)
+            </button>
+            <button class="btn btn-sm ${activePoolTab === 'work' ? 'btn-primary' : 'btn-ghost'}" style="border:none;" onclick="setPoolTab('work')">
+              ${icon('monitor', 13)} Computer / Work Pool (${workCount} active · GitHub, Gmail, MCP)
+            </button>
+          </div>
+        </div>
+
+        ${activePoolTab === 'life' ? `
+          <div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-elevated); padding:10px 14px; border-radius:var(--radius-sm); border:1px solid var(--border); flex-wrap:wrap; gap:10px;">
+            <span style="font-size:12.5px; font-weight:600; display:inline-flex; align-items:center; gap:6px;">
+              ${icon('anchor', 14)} Seasonal Event Anchors:
+            </span>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              ${Object.keys(state.anchors).map(a => `
+                <button class="btn btn-sm ${state.anchors[a] ? 'btn-done' : ''}" onclick="toggleAnchor('${a}')">
+                  ${state.anchors[a] ? `${icon('check', 12)} Active:` : 'Off:'} ${a}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          ${filtered.map(t => {
+            const ev = DrawEngine.evaluateEligibility(t, state);
+            const noteCount = (t.previousNotes ? t.previousNotes.length : 0) + (t.notes ? 1 : 0);
+            return `
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--bg-elevated); padding:10px 14px; border-radius:var(--radius-sm); border:1px solid var(--border); opacity:${ev.eligible ? '1' : '0.58'};">
+                <div>
+                  <div style="font-weight:600; font-size:13.5px; display:flex; align-items:center; gap:6px;">
+                    ${t.oneThing ? icon('flame', 13) : ''}${escapeHtml(t.title)}
+                  </div>
+                  ${!state.hideTags ? `
+                    <div style="display:flex; gap:6px; margin-top:4px; flex-wrap:wrap;">
+                      <span class="chip ${t.effort.toLowerCase()}">${t.effort}</span>
+                      <span class="chip">${t.context}</span>
+                      ${noteCount > 0 ? `<span class="chip">${icon('file-text', 11)} ${noteCount} notes</span>` : ''}
+                      ${t.source ? `<span class="chip source">${icon(t.source.includes('MCP') ? 'terminal' : 'briefcase', 11)} ${escapeHtml(t.source)}</span>` : ''}
+                      ${ev.eligible
+                        ? `<span class="chip" style="color:var(--emerald);">Eligible (wt ${ev.weight}x)</span>`
+                        : `<span class="chip">Hidden: ${escapeHtml(ev.reasons.join(', '))}</span>`
+                      }
+                    </div>
+                  ` : ''}
+                </div>
+                <div style="display:flex; gap:6px;">
+                  ${t.status === 'active' ? `
+                    <button class="btn btn-sm btn-done" onclick="completeTask('${t.id}')">${icon('check', 13)} Done</button>
+                    ${activePoolTab === 'life' ? `<button class="btn btn-sm" onclick="forceIntoWeeklyDraw('${t.id}')">Draw Now</button>` : ''}
+                  ` : `<span class="chip">${t.status}</span>`}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function setPoolTab(pool) {
+      state.poolFilter.pool = pool;
+      state.poolFilter.context = 'All';
+      renderAll();
+    }
+
+    function renderBrainDumpView(compact = false) {
+      return `
+        <div class="top-bar">
+          <div>
+            <h2 style="font-size:19px; font-weight:700;">AI Brain Dump &amp; Gentle Safety Check</h2>
+            <p class="section-subtitle">Paste or dictate messy thoughts. We split them into tagged tasks you can accept or ignore.</p>
+          </div>
+          <span class="chip source" title="Powered by GitHub Copilot SDK on macOS first; synced to iPhone via CloudKit">
+            ${icon('bot', 12)} GitHub Copilot SDK · macOS First
+          </span>
+        </div>
+
+        ${compact ? `
+          <div style="background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; font-size:12px; color:var(--text-secondary); display:flex; align-items:center; gap:8px;">
+            ${icon('cloud', 15)}
+            <span><strong>macOS-first AI:</strong> GitHub Copilot SDK runs on your Mac; extracted tasks &amp; 5-minute steps sync here via iCloud. Native iPhone Copilot SDK invocation lands in Phase 2.</span>
+          </div>
+        ` : ''}
+
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <textarea rows="3" id="braindump-input" placeholder="Paste messy thoughts or tap Test Self-Critical Phrase...">${escapeHtml(state.brainDumpText)}</textarea>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="runBrainDumpFromInput()">${icon('sparkles', 14)} Extract with GitHub Copilot SDK</button>
+            <button class="btn" onclick="testSelfCriticalInput()">${icon('heart', 14)} Test Self-Critical / Crisis Phrase</button>
+          </div>
+        </div>
+
+        ${state.gentleCrisisBanner ? `
+          <div class="gentle-banner" style="border-color:var(--rose); background:var(--rose-soft);">
+            <div style="font-weight:700; color:var(--rose); font-size:13.5px; display:flex; align-items:center; gap:6px;">
+              ${icon('heart', 15)} ${escapeHtml(state.gentleCrisisBanner.message)}
+            </div>
+            <div style="font-size:12px; color:var(--text-secondary);">
+              ${escapeHtml(state.gentleCrisisBanner.supportNote)}
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-sm btn-primary" onclick="activateHardDayFromCrisis()">Switch to Hard Day Mode (2m)</button>
+            </div>
+          </div>
+        ` : ''}
+
+        ${state.brainDumpProposals.length > 0 ? `
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <div class="section-title">Proposed Tasks from Copilot SDK (Review before adding):</div>
+            ${state.brainDumpProposals.map(p => `
+              <div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-elevated); padding:10px 14px; border-radius:var(--radius-sm); border:1px solid var(--border);">
+                <div>
+                  <div style="font-weight:600; font-size:13.5px;">${escapeHtml(p.title)}</div>
+                  <div style="display:flex; gap:6px; margin-top:4px;">
+                    <span class="chip ${p.effort.toLowerCase()}">${p.effort}</span>
+                    <span class="chip">${p.context}</span>
+                  </div>
+                </div>
+                <button class="btn btn-sm btn-done" onclick="acceptBrainDumpProposal('${p.id}')">${icon('plus', 13)} Add to Pool</button>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+      `;
+    }
+
+    function renderMcpView(compact = false) {
+      const mcpTasks = state.tasks.filter(t => t.source && t.source.includes('MCP'));
+      return `
+        <div class="top-bar">
+          <div>
+            <h2 style="font-size:19px; font-weight:700;">Local MCP Server (Copilot &amp; Claude)</h2>
+            <p class="section-subtitle">Push tasks straight from GitHub Copilot CLI, VS Code, or Claude Desktop without switching windows.</p>
+          </div>
+          <span class="chip" style="color:var(--emerald);">
+            ${icon('terminal', 12)} stdio + localhost:48120 · Listening
+          </span>
+        </div>
+
+        <div class="card-grid">
+          <div class="task-card">
+            <div class="task-slot-label">${icon('terminal', 13)} Simulate Agent MCP Call</div>
+            <div style="font-size:13px; color:var(--text-secondary);">
+              Test how <strong>GitHub Copilot</strong> or <strong>Claude</strong> adds tasks or dumps thoughts into your SwiftData + CloudKit pool.
+            </div>
+            <input class="input" id="mcp-custom-title" placeholder="Task title from Copilot or Claude..." value="Verify OAuth token refresh edge case on staging" />
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <select class="input" id="mcp-custom-context" style="width:auto;">
+                <option value="Computer">Computer</option>
+                <option value="Anywhere">Anywhere</option>
+                <option value="Errands">Errands</option>
+                <option value="Outside">Outside</option>
+              </select>
+              <select class="input" id="mcp-custom-effort" style="width:auto;">
+                <option value="Quick">Quick (~5m)</option>
+                <option value="Medium">Medium (~20m)</option>
+                <option value="Big">Big (1h+)</option>
+              </select>
+            </div>
+            <div class="task-actions">
+              <button class="btn btn-sm btn-primary" onclick="triggerCustomMcpAdd('Copilot MCP')">
+                ${icon('bot', 13)} Push from Copilot MCP
+              </button>
+              <button class="btn btn-sm" onclick="triggerCustomMcpAdd('Claude MCP')">
+                ${icon('terminal', 13)} Push from Claude MCP
+              </button>
+              <button class="btn btn-sm" onclick="simulateMcpToolCall('Copilot MCP', 'brain_dump')">
+                ${icon('sparkles', 13)} Send <span class="mono">brain_dump</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="task-card">
+            <div class="task-slot-label">${icon('bot', 13)} Exposed MCP Tools &amp; Copilot SDK</div>
+            <pre class="mono" style="font-size:11px; background:var(--bg-canvas); padding:10px; border-radius:6px; border:1px solid var(--border); overflow-x:auto; color:var(--text-secondary); line-height:1.45;">// ~/.copilot/mcp-config.json &amp; claude_desktop_config.json
+{
+  "mcpServers": {
+    "steady-todo": {
+      "command": "/Applications/Steady.app/Contents/MacOS/steady-mcp",
+      "tools": [
+        "add_task",        // Push task with context &amp; effort
+        "brain_dump",      // Parse via GitHub Copilot SDK
+        "get_weekly_draw", // Read active 2-card draw
+        "complete_task",   // Mark done from terminal
+        "snooze_task"      // Defer without guilt
+      ]
+    }
+  }
+}</pre>
+            <div style="font-size:11.5px; color:var(--text-muted);">
+              ${icon('cloud', 12)} Tasks captured via macOS MCP or parsed by the <strong>GitHub Copilot SDK</strong> sync automatically to iPhone via CloudKit.
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="section-title">Recent Tasks Added via Copilot / Claude MCP (${mcpTasks.length}):</div>
+          <div class="card-grid">
+            ${mcpTasks.map(t => renderTaskCard(t, `${t.source} · ${t.externalRef || 'add_task'}`, 'incoming')).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function triggerCustomMcpAdd(agentSource) {
+      const title = (document.getElementById('mcp-custom-title')?.value || '').trim() || 'Follow up on PR review comment';
+      const context = document.getElementById('mcp-custom-context')?.value || 'Computer';
+      const effort = document.getElementById('mcp-custom-effort')?.value || 'Quick';
+      simulateMcpToolCall(agentSource, 'add_task', { title, context, effort });
+    }
+  </script>
+
+  <!-- =========================================================================
+       THREE RADICALLY DIFFERENT UI VARIANTS (UI.md)
+       ========================================================================= -->
+  <script>
+    function renderMacOSVariantA() {
+      const activePoolCount = state.tasks.filter(t => t.status === 'active').length;
+      const workDrawCount = DrawEngine.computeWorkDraw(state).visible.length;
+      const mcpCount = state.tasks.filter(t => t.source && t.source.includes('MCP') && t.status === 'active').length;
+      return `
+        <div class="macos-shell">
+          ${renderMacMenuBar()}
+          <div class="macos-window">
+            <aside class="macos-sidebar">
+              <div>
+                <div class="traffic-lights">
+                  <span class="traffic-dot red"></span>
+                  <span class="traffic-dot yellow"></span>
+                  <span class="traffic-dot green"></span>
+                </div>
+                <div class="nav-section-label">Separate Draws</div>
+                <button class="nav-item ${state.nav === 'home' ? 'active' : ''}" onclick="setNav('home')">
+                  <span class="nav-item-left">${icon('home', 14)} Life Draw</span>
+                  <span class="nav-count">2</span>
+                </button>
+                <button class="nav-item ${state.nav === 'work' ? 'active' : ''}" onclick="setNav('work')">
+                  <span class="nav-item-left">${icon('monitor', 14)} Computer / Work</span>
+                  <span class="nav-count">${state.workHoursOn ? workDrawCount : 'Off'}</span>
+                </button>
+                <button class="nav-item ${state.nav === 'pull' ? 'active' : ''}" onclick="setNav('pull')">
+                  <span class="nav-item-left">${icon('dices', 14)} I Have Time (Pull)</span>
+                  <span class="nav-count">&le;3</span>
+                </button>
+
+                <div class="nav-section-label">Capture, AI &amp; Pools</div>
+                <button class="nav-item ${state.nav === 'braindump' ? 'active' : ''}" onclick="setNav('braindump')">
+                  <span class="nav-item-left">${icon('brain', 14)} Copilot SDK Dump</span>
+                </button>
+                <button class="nav-item ${state.nav === 'mcp' ? 'active' : ''}" onclick="setNav('mcp')">
+                  <span class="nav-item-left">${icon('terminal', 14)} External MCP Push</span>
+                  <span class="nav-count">${mcpCount}</span>
+                </button>
+                <button class="nav-item ${state.nav === 'pool' ? 'active' : ''}" onclick="setNav('pool')">
+                  <span class="nav-item-left">${icon('layers', 14)} Life &amp; Work Pools</span>
+                  <span class="nav-count">${activePoolCount}</span>
+                </button>
+              </div>
+
+              <div style="padding:10px; background:var(--bg-surface); border-radius:var(--radius-sm); border:1px solid var(--border); font-size:11.5px; color:var(--text-secondary);">
+                <div style="font-weight:600; color:var(--text-primary); margin-bottom:3px;">Calm Default</div>
+                List View shows task titles only. Click any task for your previous notes, Focus Timer &amp; Break it down.
+              </div>
+            </aside>
+
+            <section class="macos-content">
+              ${renderMainContentView()}
+            </section>
+          </div>
+        </div>
+      `;
+    }
+
+    // Variant B: Single-Card Zen Focus Deck (Zero lists, one card at a time)
+    let zenDeckIndex = 0;
+    function renderMacOSVariantB() {
+      const deck = [
+        { slot: `${icon('flame', 13)} Life · Quick Slot (~5m)`, key: 'quick', task: state.tasks.find(t => t.id === state.weeklyDraw.quickId) },
+        { slot: `${icon('wrench', 13)} Life · Medium Slot (~20m)`, key: 'medium', task: state.tasks.find(t => t.id === state.weeklyDraw.mediumId) },
+        ...DrawEngine.computeWorkDraw(state).visible.map(t => ({
+          slot: `${icon('monitor', 13)} Computer / Work Pool`,
+          key: 'work',
+          task: t
+        }))
+      ].filter(x => x.task);
+
+      if (zenDeckIndex >= deck.length) zenDeckIndex = 0;
+      const current = deck[zenDeckIndex];
+
+      return `
+        <div class="macos-shell">
+          ${renderMacMenuBar()}
+          <div class="macos-window variant-b-window">
+            <section class="macos-content" style="align-items:center; justify-content:center; text-align:center; padding:36px;">
+              ${renderActiveTimerBanner()}
+              <div style="display:flex; align-items:center; justify-content:space-between; width:100%; max-width:540px;">
+                <span class="chip onething">Variant B · Single-Card Zen Deck</span>
+                ${renderWeekDots()}
+              </div>
+
+              <div style="width:100%; max-width:540px; text-align:left; margin:12px 0;">
+                ${current ? (state.homeLayout === 'list'
+                  ? renderTaskListRow(current.task, `${current.slot} · ${zenDeckIndex + 1}/${deck.length}`, current.key)
+                  : renderTaskCard(current.task, `${current.slot} · ${zenDeckIndex + 1}/${deck.length}`, current.key)
+                ) : ''}
+              </div>
+
+              <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center;">
+                <button class="btn" onclick="stepZenDeck(-1)">&larr; Previous</button>
+                <button class="btn btn-primary" onclick="stepZenDeck(1)">Next in Draw (${zenDeckIndex + 1}/${deck.length}) &rarr;</button>
+                <button class="btn" onclick="openQuickCaptureModal()">${icon('plus', 13)} Quick Capture</button>
+              </div>
+            </section>
+          </div>
+        </div>
+      `;
+    }
+
+    function stepZenDeck(delta) {
+      zenDeckIndex = Math.max(0, zenDeckIndex + delta);
+      renderAll();
+    }
+
+    // Variant C: Side-by-Side Life Pool vs. Computer/Work Pool Deck
+    function renderMacOSVariantC() {
+      const quickTask = state.tasks.find(t => t.id === state.weeklyDraw.quickId && t.status === 'active');
+      const mediumTask = state.tasks.find(t => t.id === state.weeklyDraw.mediumId && t.status === 'active');
+      const lifeItems = [
+        quickTask ? { task: quickTask, label: `${icon('zap', 13)} Quick Slot (~5m)`, key: 'quick' } : null,
+        mediumTask ? { task: mediumTask, label: `${icon('wrench', 13)} Medium Slot (~20m)`, key: 'medium' } : null
+      ].filter(Boolean);
+      const workItems = DrawEngine.computeWorkDraw(state).visible.map(t => ({
+        task: t,
+        label: `${icon('monitor', 13)} Computer / Work`,
+        key: 'work'
+      }));
+
+      return `
+        <div class="macos-shell">
+          ${renderMacMenuBar()}
+          <div class="macos-window" style="grid-template-columns: 1fr;">
+            <section class="macos-content">
+              ${renderActiveTimerBanner()}
+              <div class="top-bar" style="border-bottom:1px solid var(--border); padding-bottom:12px;">
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                  <span style="font-weight:700; font-size:15px;">Variant C · Split Life &amp; Computer Board</span>
+                  <button class="btn btn-sm ${state.nav === 'home' ? 'btn-primary' : ''}" onclick="setNav('home')">Draws</button>
+                  <button class="btn btn-sm ${state.nav === 'pull' ? 'btn-primary' : ''}" onclick="setNav('pull')">Pull</button>
+                  <button class="btn btn-sm ${state.nav === 'braindump' ? 'btn-primary' : ''}" onclick="setNav('braindump')">${icon('brain', 13)} Dump</button>
+                  <button class="btn btn-sm ${state.nav === 'mcp' ? 'btn-primary' : ''}" onclick="setNav('mcp')">${icon('terminal', 13)} MCP</button>
+                  <button class="btn btn-sm ${state.nav === 'pool' ? 'btn-primary' : ''}" onclick="setNav('pool')">Pools</button>
+                </div>
+                ${renderWeekDots()}
+              </div>
+
+              ${state.nav !== 'home' ? renderMainContentView() : `
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:18px;">
+                  <div style="display:flex; flex-direction:column; gap:10px;">
+                    <div class="section-title">${icon('home', 13)} 1. Life Draw (Outside, Errands, Anywhere)</div>
+                    ${renderDrawnItems(lifeItems)}
+                  </div>
+                  <div style="display:flex; flex-direction:column; gap:10px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between;">
+                      <span class="section-title">${icon('monitor', 13)} 2. Computer / Work Pool</span>
+                      <button class="btn btn-sm" onclick="toggleWorkDuty()">${state.workHoursOn ? 'Off Duty' : 'On Duty'}</button>
+                    </div>
+                    ${state.workHoursOn ? renderDrawnItems(workItems) : `<div class="task-card"><div class="task-notes">Off duty - Computer pool hidden.</div></div>`}
+                  </div>
+                </div>
+              `}
+            </section>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderMacMenuBar() {
+      const oneThing = state.tasks.find(t => t.oneThing && t.status === 'active')
+        || state.tasks.find(t => t.id === state.weeklyDraw.quickId);
+      return `
+        <div class="macos-menubar">
+          <div class="menubar-left">
+            <span>${icon('command', 12)}</span>
+            <span class="menubar-appname">Steady</span>
+            <span>File</span>
+            <span>Draw</span>
+            <span>Focus</span>
+            <span style="color:var(--emerald); display:inline-flex; align-items:center; gap:4px; cursor:pointer;" onclick="setNav('mcp')" title="Local MCP Server active for Copilot & Claude">
+              ${icon('terminal', 11)} MCP Ready
+            </span>
+          </div>
+          <div class="menubar-right">
+            <button class="menubar-extra-btn" onclick="toggleMenuBarPopover()">
+              ${icon('flame', 12)} ${oneThing ? escapeHtml(oneThing.title.slice(0, 26)) + '…' : 'Menu Bar Extra'}
+              ${state.timer.activeTaskId ? `· ${formatSeconds(state.timer.remainingSec)}` : ''}
+            </button>
+            <span>Wed 9:41 AM</span>
+          </div>
+          ${state.menuBarOpen ? `
+            <div class="menubar-popover">
+              <div style="font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px; display:flex; justify-content:space-between;">
+                <span>macOS MenuBarExtra · One Thing</span>
+                <span style="color:var(--emerald);">MCP: On</span>
+              </div>
+              ${oneThing ? `
+                <div style="font-weight:600; font-size:13.5px; margin-bottom:8px;">${escapeHtml(oneThing.title)}</div>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                  <button class="btn btn-sm btn-done" onclick="completeTask('${oneThing.id}')">${icon('check', 12)} Done</button>
+                  <button class="btn btn-sm" onclick="skipOrRerollSlot('quick', '${oneThing.id}')">${icon('rotate-ccw', 12)} Not Now</button>
+                  <button class="btn btn-sm" onclick="startTimerForTask('${oneThing.id}')">${icon('timer', 12)} Focus</button>
+                </div>
+              ` : `<div style="font-size:12px;">All clear!</div>`}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function renderIPhoneCompanion() {
+      const quickTask = state.tasks.find(t => t.id === state.weeklyDraw.quickId && t.status === 'active');
+      const mediumTask = state.tasks.find(t => t.id === state.weeklyDraw.mediumId && t.status === 'active');
+      const lifeItems = [
+        quickTask ? { task: quickTask, label: `${icon('zap', 13)} Quick Slot (~5m)`, key: 'quick' } : null,
+        mediumTask ? { task: mediumTask, label: `${icon('wrench', 13)} Medium Slot (~20m)`, key: 'medium' } : null
+      ].filter(Boolean);
+
+      return `
+        <div class="iphone-shell">
+          <div class="iphone-notch">
+            <span>9:41</span>
+            <div class="dynamic-island">
+              ${state.timer.activeTaskId
+                ? `${icon('timer', 11)} <span class="live-timer-readout">${formatSeconds(state.timer.remainingSec)}</span>`
+                : `${icon('flame', 11)} 0 Overdue`
+              }
+            </div>
+            <span>5G 100%</span>
+          </div>
+
+          <div class="iphone-body">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <div>
+                <div style="font-size:11px; color:var(--text-muted); font-weight:600; text-transform:uppercase; display:flex; align-items:center; gap:4px;">
+                  ${icon('cloud', 11)} iPhone · CloudKit Synced
+                </div>
+                <div style="font-size:17px; font-weight:700;">
+                  ${state.nav === 'home' ? 'Life Draw' : state.nav === 'work' ? 'Computer / Work' : state.nav.toUpperCase()}
+                </div>
+              </div>
+              <button class="btn btn-sm" onclick="openQuickCaptureModal()">${icon('mic', 13)} Voice</button>
+            </div>
+
+            ${state.nav === 'home' && !state.hardDayMode ? `
+              ${renderWeekDots()}
+              ${renderDrawnItems(lifeItems)}
+            ` : renderMainContentView(true)}
+          </div>
+
+          <div class="iphone-tabbar">
+            <button class="iphone-tab ${state.nav === 'home' ? 'active' : ''}" onclick="setNav('home')">
+              <span>${icon('home', 16)}</span><span>Life</span>
+            </button>
+            <button class="iphone-tab ${state.nav === 'work' ? 'active' : ''}" onclick="setNav('work')">
+              <span>${icon('monitor', 16)}</span><span>Work</span>
+            </button>
+            <button class="iphone-tab ${state.nav === 'pull' ? 'active' : ''}" onclick="setNav('pull')">
+              <span>${icon('dices', 16)}</span><span>Pull</span>
+            </button>
+            <button class="iphone-tab ${state.nav === 'braindump' ? 'active' : ''}" onclick="setNav('braindump')">
+              <span>${icon('brain', 16)}</span><span>Dump</span>
+            </button>
+            <button class="iphone-tab ${state.nav === 'pool' ? 'active' : ''}" onclick="setNav('pool')">
+              <span>${icon('layers', 16)}</span><span>Pools</span>
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderInspector() {
+      const rows = state.tasks.map(t => {
+        const ev = DrawEngine.evaluateEligibility(t, state);
+        return `
+          <div class="inspector-row ${ev.eligible ? '' : 'ineligible'}">
+            <div style="display:flex; justify-content:space-between; font-weight:600;">
+              <span>${escapeHtml(t.title.slice(0, 28))}</span>
+              <span class="mono" style="color:${ev.eligible ? 'var(--emerald)' : 'var(--text-muted)'};">
+                ${ev.eligible ? `wt ${ev.weight}x` : 'HIDDEN'}
+              </span>
+            </div>
+            <div class="mono" style="color:var(--text-secondary);">
+              ${t.context} · ${t.effort} ${ev.withinLeadTime ? '· DEADLINE_OVERRIDE' : ''}
+            </div>
+            ${!ev.eligible ? `<div class="mono" style="color:var(--amber);">Why: ${escapeHtml(ev.reasons.join(', '))}</div>` : ''}
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div style="font-weight:700; font-size:14px;">Draw Engine Debug Inspector</div>
+          <button class="btn btn-sm" onclick="toggleInspector()">${icon('x', 13)}</button>
+        </div>
+        <div style="font-size:11.5px; color:var(--text-secondary);">
+          Pure state module readout: <span class="mono">weight = 1 + (daysSinceShown / 7)</span>. Tasks within lead time (7d/14d/30d) win first.
+        </div>
+        ${rows}
+      `;
+    }
+  </script>
+
+  <!-- =========================================================================
+       MODALS & INTERACTION HANDLERS
+       ========================================================================= -->
+  <script>
+    function openQuickCaptureModal() {
+      const root = document.getElementById('modal-root');
+      root.innerHTML = `
+        <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
+          <div class="spotlight-modal">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight:700; font-size:14px; display:inline-flex; align-items:center; gap:6px;">
+                ${icon('zap', 15)} Under-10-Second Capture (macOS Cmd+Shift+Space / iPhone Action Button)
+              </span>
+              <button class="btn btn-sm" onclick="closeModal()">Esc</button>
+            </div>
+            <input class="input" id="qc-title" placeholder="What's on your mind? (Defaults: Anywhere · Quick)" autofocus />
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+              <select class="input" id="qc-context" style="width:auto;">
+                <option value="Anywhere">Anywhere (Default)</option>
+                <option value="Outside">Outside / House</option>
+                <option value="Computer">Computer</option>
+                <option value="Errands">Errands</option>
+              </select>
+              <select class="input" id="qc-effort" style="width:auto;">
+                <option value="Quick">Quick (~5m)</option>
+                <option value="Medium">Medium (~20m)</option>
+                <option value="Big">Big (1h+)</option>
+              </select>
+              <button class="btn btn-sm" onclick="simulateVoiceCapture()">${icon('mic', 13)} Dictate Sample</button>
+              <button class="btn btn-primary" style="margin-left:auto;" onclick="submitQuickCapture()">Save to Pool</button>
+            </div>
+          </div>
+        </div>
+      `;
+      setTimeout(() => {
+        const inp = document.getElementById('qc-title');
+        if (inp) inp.focus();
+      }, 20);
+    }
+
+    function simulateVoiceCapture() {
+      const inp = document.getElementById('qc-title');
+      if (inp) inp.value = 'Put salt bags by basement stairs before December snow';
+      document.getElementById('qc-context').value = 'Outside';
+      document.getElementById('qc-effort').value = 'Quick';
+    }
+
+    function submitQuickCapture() {
+      const title = (document.getElementById('qc-title')?.value || '').trim();
+      if (!title) return;
+      const context = document.getElementById('qc-context').value;
+      const effort = document.getElementById('qc-effort').value;
+      state.tasks.unshift({
+        id: `t-${Date.now()}`,
+        title,
+        notes: 'Captured in <10s via Quick Capture',
+        context,
+        effort,
+        estMinutes: effort === 'Quick' ? 5 : 20,
+        status: 'active',
+        steps: []
+      });
+      closeModal();
+      logAction(`[Voice/Quick Capture] Captured "${title}" (${context} · ${effort}) into Pool`);
+    }
+
+    function openSnoozeModal(taskId) {
+      const t = state.tasks.find(x => x.id === taskId);
+      if (!t) return;
+      const root = document.getElementById('modal-root');
+      root.innerHTML = `
+        <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
+          <div class="spotlight-modal">
+            <div style="font-weight:700; font-size:15px; display:inline-flex; align-items:center; gap:6px;">
+              ${icon('moon', 15)} Snooze "${escapeHtml(t.title)}"
+            </div>
+            <div style="font-size:12.5px; color:var(--text-secondary);">
+              Skipping and snoozing are free. No badge count, no penalty.
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn btn-primary" onclick="snoozeTask('${t.id}', 'tomorrow')">Tomorrow</button>
+              <button class="btn" onclick="snoozeTask('${t.id}', 'next-week')">Next Week (+7d)</button>
+              <button class="btn" onclick="snoozeTask('${t.id}', 'next-season')">Next Season (+3mo)</button>
+              <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function openTaskModal(taskId) {
+      const t = state.tasks.find(x => x.id === taskId);
+      if (!t) return;
+      const root = document.getElementById('modal-root');
+      root.innerHTML = `
+        <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
+          <div class="spotlight-modal">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="chip ${t.effort.toLowerCase()}">${t.effort} · ${t.context}</span>
+              <button class="btn btn-sm" onclick="closeModal()">Close</button>
+            </div>
+            <div style="font-weight:700; font-size:16px;">${escapeHtml(t.title)}</div>
+            <div style="font-size:13px; color:var(--text-secondary);">${escapeHtml(t.notes || 'No extra notes.')}</div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn btn-sm btn-primary" onclick="breakDownTaskAI('${t.id}'); closeModal();">
+                ${icon('sparkles', 13)} Copilot SDK: Break Into 3 Steps
+              </button>
+              <button class="btn btn-sm btn-done" onclick="completeTask('${t.id}'); closeModal();">
+                ${icon('check', 13)} Mark Done
+              </button>
+              <button class="btn btn-sm" onclick="archiveTask('${t.id}'); closeModal();">
+                ${icon('leaf', 13)} Let It Go (Archive)
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function closeModal() {
+      document.getElementById('modal-root').innerHTML = '';
+    }
+
+    function setNav(nav) {
+      state.nav = nav;
+      renderAll();
+    }
+
+    function updatePullFilter(context, effort) {
+      if (context) state.pullFilter.context = context;
+      if (effort) state.pullFilter.effort = effort;
+      state.pullFilter.results = DrawEngine.computePullDraw(state, state.pullFilter.context, state.pullFilter.effort);
+      logAction(`[Pull Draw] Filter set to ${state.pullFilter.context} + ${state.pullFilter.effort}`);
+    }
+
+    function rerollPull() {
+      state.pullFilter.results = DrawEngine.computePullDraw(
+        state,
+        state.pullFilter.context,
+        state.pullFilter.effort,
+        state.pullFilter.results
+      );
+      logAction(`[Pull Draw] Rerolled Pull options (no penalty)`);
+    }
+
+    function rerollBothWeekly() {
+      const exclude = [state.weeklyDraw.quickId, state.weeklyDraw.mediumId].filter(Boolean);
+      state.weeklyDraw = DrawEngine.computeWeeklyDraw(state, exclude);
+      logAction(`[Weekly Draw] Rerolled both weekly slots from eligible pool`);
+    }
+
+    function toggleHardDay() {
+      state.hardDayMode = !state.hardDayMode;
+      logAction(state.hardDayMode ? '[Hard Day] Entered Hard Day Mode (1 task, 2-minute timer)' : 'Exited Hard Day Mode');
+    }
+
+    function toggleWorkDuty() {
+      state.workHoursOn = !state.workHoursOn;
+      logAction(state.workHoursOn ? '[Work Stream] Enabled' : '[Off Duty] External work stream hidden');
+    }
+
+    function toggleWorkLaneExpanded() {
+      state.workLaneExpanded = !state.workLaneExpanded;
+      renderAll();
+    }
+
+    function toggleMenuBarPopover() {
+      state.menuBarOpen = !state.menuBarOpen;
+      renderAll();
+    }
+
+    function toggleInspector() {
+      state.inspectorOpen = !state.inspectorOpen;
+      renderAll();
+    }
+
+    function toggleAnchor(anchorKey) {
+      state.anchors[anchorKey] = !state.anchors[anchorKey];
+      state.weeklyDraw = DrawEngine.computeWeeklyDraw(state);
+      logAction(`[Anchor] Flipped seasonal anchor "${anchorKey}" to ${state.anchors[anchorKey] ? 'ON' : 'OFF'}`);
+    }
+
+    function setPoolContext(c) {
+      state.poolFilter.context = c;
+      renderAll();
+    }
+
+    function forceIntoWeeklyDraw(taskId) {
+      const t = state.tasks.find(x => x.id === taskId);
+      if (!t) return;
+      if (t.effort === 'Quick') state.weeklyDraw.quickId = t.id;
+      else state.weeklyDraw.mediumId = t.id;
+      state.nav = 'home';
+      logAction(`Pulled "${t.title}" into This Week's Draw`);
+    }
+
+    function clearOverflowNotifications() {
+      state.tasks = state.tasks.filter(t => !t.id.startsWith('gh-extra-'));
+      logAction(`[Batch Triage] Triaged overflow GitHub notifications in one batch`);
+    }
+
+    function runBrainDumpFromInput() {
+      const el = document.getElementById('braindump-input');
+      if (el) state.brainDumpText = el.value;
+      parseBrainDump(state.brainDumpText);
+    }
+
+    function testSelfCriticalInput() {
+      state.brainDumpText = "I'm failing at everything this week and can't do anything right, the house is a mess.";
+      parseBrainDump(state.brainDumpText);
+    }
+
+    function activateHardDayFromCrisis() {
+      state.hardDayMode = true;
+      state.nav = 'home';
+      logAction('[Hard Day] Switched to Hard Day mode from gentle language check');
+    }
+
+    /* =========================================================================
+       MASTER RENDER LOOP & EVENT WIRING
+       ========================================================================= */
+    function renderAll() {
+      // Scenario tabs
+      const tabsEl = document.getElementById('scenario-tabs');
+      tabsEl.innerHTML = `<span style="font-weight:600; color:var(--text-secondary); margin-right:4px;">Walkthroughs:</span>` +
+        SCENARIOS.map(s => `
+          <button class="scenario-tab ${activeScenarioId === s.id ? 'active' : ''}" onclick="runScenario('${s.id}')">
+            ${escapeHtml(s.label)}
+          </button>
+        `).join('');
+
+      document.getElementById('last-action-log').textContent = state.lastAction;
+      document.getElementById('btn-quick-capture').innerHTML = `${icon('command', 13)} Cmd+K Capture`;
+      document.getElementById('btn-toggle-tags').innerHTML = state.hideTags
+        ? `${icon('eye', 13)} Tags: Hidden`
+        : `${icon('eye-off', 13)} Hide Tags`;
+      document.getElementById('btn-mcp-console').innerHTML = `${icon('terminal', 13)} External MCP Push`;
+      document.getElementById('btn-hard-day').innerHTML = state.hardDayMode
+        ? `${icon('waves', 13)} Exit Hard Day`
+        : `${icon('waves', 13)} Hard Day Mode`;
+      document.getElementById('btn-work-duty').innerHTML = state.workHoursOn
+        ? `${icon('briefcase', 13)} Work Stream: On`
+        : `${icon('moon', 13)} Work Stream: Off Duty`;
+      document.getElementById('btn-inspector').innerHTML = `${icon('search', 13)} Draw Math`;
+      document.getElementById('btn-theme').innerHTML = `${icon('sun', 13)} Theme`;
+
+      // Main stage: macOS + iPhone
+      const stageMain = document.getElementById('stage-main');
+      let macHtml = '';
+      if (currentVariant === 'A') macHtml = renderMacOSVariantA();
+      else if (currentVariant === 'B') macHtml = renderMacOSVariantB();
+      else macHtml = renderMacOSVariantC();
+
+      const iphoneHtml = renderIPhoneCompanion();
+
+      if (currentDevice === 'macos') {
+        stageMain.innerHTML = macHtml;
+      } else if (currentDevice === 'iphone') {
+        stageMain.innerHTML = iphoneHtml;
+      } else {
+        stageMain.innerHTML = macHtml + iphoneHtml;
+      }
+
+      // Inspector
+      const insp = document.getElementById('inspector-panel');
+      if (state.inspectorOpen) {
+        insp.style.display = 'flex';
+        insp.innerHTML = renderInspector();
+      } else {
+        insp.style.display = 'none';
+      }
+
+      // Bottom Floating Switcher
+      const vMeta = VARIANTS[currentVariant];
+      document.getElementById('variant-label').textContent = `${vMeta.key} (${vMeta.name})`;
+      const devLabels = {
+        both: `${icon('monitor', 13)} + ${icon('smartphone', 13)} Both`,
+        macos: `${icon('monitor', 13)} macOS Only`,
+        iphone: `${icon('smartphone', 13)} iPhone Only`
+      };
+      document.getElementById('device-cycle').innerHTML = devLabels[currentDevice];
+    }
+
+    function runScenario(id) {
+      activeScenarioId = id;
+      const sc = SCENARIOS.find(x => x.id === id);
+      if (sc) sc.run();
+    }
+
+    // Top bar & Switcher listeners
+    document.getElementById('btn-quick-capture').addEventListener('click', openQuickCaptureModal);
+    document.getElementById('btn-toggle-tags').addEventListener('click', toggleHideTags);
+    document.getElementById('btn-mcp-console').addEventListener('click', () => setNav('mcp'));
+    document.getElementById('btn-hard-day').addEventListener('click', toggleHardDay);
+    document.getElementById('btn-work-duty').addEventListener('click', toggleWorkDuty);
+    document.getElementById('btn-inspector').addEventListener('click', toggleInspector);
+    document.getElementById('btn-theme').addEventListener('click', () => {
+      const root = document.documentElement;
+      const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+    });
+
+    const variantOrder = ['A', 'B', 'C'];
+    document.getElementById('variant-prev').addEventListener('click', () => {
+      const next = variantOrder[(variantOrder.indexOf(currentVariant) - 1 + variantOrder.length) % variantOrder.length];
+      setVariant(next);
+    });
+    document.getElementById('variant-next').addEventListener('click', () => {
+      const next = variantOrder[(variantOrder.indexOf(currentVariant) + 1) % variantOrder.length];
+      setVariant(next);
+    });
+    document.getElementById('device-cycle').addEventListener('click', cycleDevice);
+
+    window.addEventListener('keydown', (e) => {
+      const tag = (e.target && e.target.tagName) || '';
+      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        openQuickCaptureModal();
+        return;
+      }
+      if (e.key === 'Escape') {
+        closeModal();
+        return;
+      }
+      if (isInput) return;
+      if (e.key === 'ArrowLeft') {
+        const next = variantOrder[(variantOrder.indexOf(currentVariant) - 1 + variantOrder.length) % variantOrder.length];
+        setVariant(next);
+      } else if (e.key === 'ArrowRight') {
+        const next = variantOrder[(variantOrder.indexOf(currentVariant) + 1) % variantOrder.length];
+        setVariant(next);
+      }
+    });
+
+    // Initial render
+    renderAll();
+  </script>
+</body>
+</html>
