@@ -39,11 +39,12 @@ public final class TasksStore: ObservableObject {
         registerDarwinObserver()
 
         Task {
-            let status = await cloudKit.statusSummary()
-            self.syncStatus = status
             if let remoteTasks = await cloudKit.pullRemoteTasks(), !remoteTasks.isEmpty {
                 mergeRemoteTasks(remoteTasks)
+            } else {
+                await cloudKit.pushTasks(self.state.tasks)
             }
+            self.syncStatus = await cloudKit.statusSummary()
         }
     }
 
@@ -186,7 +187,7 @@ public final class TasksStore: ObservableObject {
         }
     }
 
-    private static func reconcileDraws(_ input: TasksState) -> TasksState {
+    public nonisolated static func reconcileDraws(_ input: TasksState) -> TasksState {
         var next = input
         let nowParts = TasksDateHelper.currentDateParts()
         if nowParts.todayISO != next.todayISO {
@@ -194,14 +195,23 @@ public final class TasksStore: ObservableObject {
             next.currentMonth = nowParts.month
             next.currentSeason = nowParts.season
         }
+        let previousDraw = next.weeklyDraw
         let life = DrawEngine.computeLifeDraw(
             tasks: next.tasks,
-            existingDraw: next.weeklyDraw,
+            existingDraw: previousDraw,
             month: next.currentMonth,
             season: next.currentSeason,
             todayISO: next.todayISO
         )
         next.weeklyDraw = life.ids
+        let now = Date()
+        for newId in [life.ids.quickId, life.ids.mediumId].compactMap({ $0 }) {
+            if newId != previousDraw.quickId && newId != previousDraw.mediumId,
+               let idx = next.tasks.firstIndex(where: { $0.id == newId }) {
+                next.tasks[idx].lastSurfacedAt = next.todayISO
+                next.tasks[idx].updatedAt = now
+            }
+        }
         let pulls = DrawEngine.computePullCandidates(
             tasks: next.tasks,
             lifeDraw: next.weeklyDraw,
@@ -221,6 +231,12 @@ public final class TasksStore: ObservableObject {
         defer { suppressDarwinPost = false }
         do {
             let persisted = try Self.mutateStateOnDisk(at: storageURL) { next in
+                let nowParts = TasksDateHelper.currentDateParts()
+                if nowParts.todayISO != next.todayISO {
+                    next.todayISO = nowParts.todayISO
+                    next.currentMonth = nowParts.month
+                    next.currentSeason = nowParts.season
+                }
                 mutation(&next)
                 if let logMessage {
                     let stamp = Self.shortTimeString()
@@ -346,7 +362,8 @@ public final class TasksStore: ObservableObject {
     public func stepZenDeck(_ delta: Int) {
         let count = max(1, zenDeckTasks.count)
         commit({ st in
-            st.zenIndex = (st.zenIndex + delta + count) % count
+            let clamped = min(max(0, st.zenIndex), count - 1)
+            st.zenIndex = (clamped + delta + count) % count
         })
     }
 

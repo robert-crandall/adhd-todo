@@ -12,9 +12,17 @@ public struct MCPServerHandler: Sendable {
     public func handleLine(_ line: String) -> String? {
         let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty,
-              let data = trimmed.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+              let data = trimmed.data(using: .utf8) else {
             return nil
+        }
+        let rawObj: Any
+        do {
+            rawObj = try JSONSerialization.jsonObject(with: data)
+        } catch {
+            return encodeResponse(id: NSNull(), error: ["code": -32700, "message": "Parse error"])
+        }
+        guard let json = rawObj as? [String: Any] else {
+            return encodeResponse(id: NSNull(), error: ["code": -32600, "message": "Invalid Request"])
         }
 
         let method = json["method"] as? String ?? ""
@@ -170,13 +178,10 @@ public struct MCPServerHandler: Sendable {
             }
 
         case "list_drawn_tasks":
-            var state = TasksStore.loadState(from: storageURL) ?? TasksState()
-            let nowParts = TasksDateHelper.currentDateParts()
-            if state.todayISO != nowParts.todayISO {
-                state.todayISO = nowParts.todayISO
-                state.currentMonth = nowParts.month
-                state.currentSeason = nowParts.season
-            }
+            let state = (try? TasksStore.mutateStateOnDisk(at: storageURL) { st in
+                st = TasksStore.reconcileDraws(st)
+                return st
+            }) ?? TasksStore.reconcileDraws(TasksStore.loadState(from: storageURL) ?? TasksState())
             let life = DrawEngine.computeLifeDraw(
                 tasks: state.tasks,
                 existingDraw: state.weeklyDraw,

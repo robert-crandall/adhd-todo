@@ -4,6 +4,7 @@ import TasksCore
 
 @main
 struct TasksMacApp: App {
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var store = TasksStore()
     @State private var selectedSection: SidebarSection = .lifeDraw
     @State private var showingQuickCapture = false
@@ -17,6 +18,11 @@ struct TasksMacApp: App {
             )
             .frame(minWidth: 920, minHeight: 620)
             .preferredColorScheme(.dark)
+            .onChange(of: scenePhase) { _, newPhase in
+                if newPhase == .active {
+                    store.refreshFromCloud()
+                }
+            }
         }
         .commands {
             CommandMenu("Tasks") {
