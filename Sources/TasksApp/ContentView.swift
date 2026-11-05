@@ -512,6 +512,9 @@ struct TaskCardDetailView: View {
                 includePrimaryButtons: true
             )
         }
+        .onChange(of: task.id) { _, _ in
+            noteDraft = ""
+        }
         .padding(18)
         .background(
             RoundedRectangle(cornerRadius: 14)

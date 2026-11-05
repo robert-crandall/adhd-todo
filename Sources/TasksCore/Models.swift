@@ -207,6 +207,34 @@ public enum TasksDateHelper {
         let comps = formatter.calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
         return "\(comps.yearForWeekOfYear ?? 0)-W\(comps.weekOfYear ?? 0)"
     }
+
+    public static let seedBaselineDate = Date(timeIntervalSince1970: 1_700_000_000)
+
+    public static func noteTimestampString(now: Date = Date()) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        return formatter.string(from: now)
+    }
+
+    public static func currentDateParts(now: Date = Date()) -> (todayISO: String, month: Int, season: TaskSeason) {
+        let cal = Calendar(identifier: .gregorian)
+        let formatter = DateFormatter()
+        formatter.calendar = cal
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        let todayISO = formatter.string(from: now)
+        let month = cal.component(.month, from: now)
+        let season: TaskSeason
+        switch month {
+        case 3, 4, 5: season = .spring
+        case 6, 7, 8: season = .summer
+        case 9, 10, 11: season = .fall
+        default: season = .winter
+        }
+        return (todayISO, month, season)
+    }
 }
 
 public struct TasksState: Codable, Sendable, Equatable {
@@ -229,9 +257,9 @@ public struct TasksState: Codable, Sendable, Equatable {
 
     public init(
         schemaVersion: Int = 1,
-        currentMonth: Int = 11,
-        currentSeason: TaskSeason = .fall,
-        todayISO: String = "2026-11-04",
+        currentMonth: Int? = nil,
+        currentSeason: TaskSeason? = nil,
+        todayISO: String? = nil,
         hardDayMode: Bool = false,
         workHoursOn: Bool = true,
         hideTags: Bool = false,
@@ -245,10 +273,11 @@ public struct TasksState: Codable, Sendable, Equatable {
         tasks: [TaskItem] = TasksState.defaultSeedTasks(),
         activityLog: [String] = []
     ) {
+        let nowParts = TasksDateHelper.currentDateParts()
         self.schemaVersion = schemaVersion
-        self.currentMonth = currentMonth
-        self.currentSeason = currentSeason
-        self.todayISO = todayISO
+        self.currentMonth = currentMonth ?? nowParts.month
+        self.currentSeason = currentSeason ?? nowParts.season
+        self.todayISO = todayISO ?? nowParts.todayISO
         self.hardDayMode = hardDayMode
         self.workHoursOn = workHoursOn
         self.hideTags = hideTags
@@ -264,7 +293,8 @@ public struct TasksState: Codable, Sendable, Equatable {
     }
 
     public static func defaultSeedTasks() -> [TaskItem] {
-        [
+        let seedDate = TasksDateHelper.seedBaselineDate
+        return [
             TaskItem(
                 id: "t-1",
                 title: "Clean out garage gutters before winter rain",
@@ -278,7 +308,8 @@ public struct TasksState: Codable, Sendable, Equatable {
                     TaskNote(id: "n-2", date: "2 weeks ago", text: "Bought new work gloves - left them on the workbench.")
                 ],
                 lastSurfacedAt: "2026-10-15",
-                estMinutes: 25
+                estMinutes: 25,
+                updatedAt: seedDate
             ),
             TaskItem(
                 id: "t-2",
@@ -292,7 +323,8 @@ public struct TasksState: Codable, Sendable, Equatable {
                 ],
                 lastSurfacedAt: "2026-10-20",
                 oneThing: true,
-                estMinutes: 5
+                estMinutes: 5,
+                updatedAt: seedDate
             ),
             TaskItem(
                 id: "t-3",
@@ -305,7 +337,8 @@ public struct TasksState: Codable, Sendable, Equatable {
                     TaskNote(id: "n-4", date: "Oct 28", text: "Side drive-thru lane is open until 6pm.")
                 ],
                 lastSurfacedAt: "2026-10-10",
-                estMinutes: 10
+                estMinutes: 10,
+                updatedAt: seedDate
             ),
             TaskItem(
                 id: "t-4",
@@ -316,7 +349,8 @@ public struct TasksState: Codable, Sendable, Equatable {
                 anchorMonth: 5,
                 notes: "Spring-only task (hidden outside Spring).",
                 lastSurfacedAt: "2026-05-01",
-                estMinutes: 60
+                estMinutes: 60,
+                updatedAt: seedDate
             ),
             TaskItem(
                 id: "t-5",
@@ -327,7 +361,8 @@ public struct TasksState: Codable, Sendable, Equatable {
                 anchorMonth: 11,
                 notes: "Portable inflator is in the garage cabinet.",
                 lastSurfacedAt: "2026-10-01",
-                estMinutes: 10
+                estMinutes: 10,
+                updatedAt: seedDate
             ),
             TaskItem(
                 id: "t-6",
@@ -340,7 +375,8 @@ public struct TasksState: Codable, Sendable, Equatable {
                     TaskNote(id: "n-5", date: "Oct 19", text: "Sort by Size first to clear old Xcode betas and DMGs.")
                 ],
                 lastSurfacedAt: "2026-10-18",
-                estMinutes: 5
+                estMinutes: 5,
+                updatedAt: seedDate
             ),
             TaskItem(
                 id: "t-7",
@@ -355,7 +391,8 @@ public struct TasksState: Codable, Sendable, Equatable {
                 lastSurfacedAt: "2026-11-01",
                 estMinutes: 15,
                 source: "GitHub",
-                externalRef: "PR #418"
+                externalRef: "PR #418",
+                updatedAt: seedDate
             ),
             TaskItem(
                 id: "t-8",
@@ -367,7 +404,8 @@ public struct TasksState: Codable, Sendable, Equatable {
                 lastSurfacedAt: "2026-11-02",
                 estMinutes: 5,
                 source: "Gmail",
-                externalRef: "Starred Thread"
+                externalRef: "Starred Thread",
+                updatedAt: seedDate
             ),
             TaskItem(
                 id: "t-9",
@@ -382,7 +420,8 @@ public struct TasksState: Codable, Sendable, Equatable {
                 lastSurfacedAt: "2026-11-04",
                 estMinutes: 15,
                 source: "Copilot MCP",
-                externalRef: "copilot-cli"
+                externalRef: "copilot-cli",
+                updatedAt: seedDate
             )
         ]
     }

@@ -142,14 +142,17 @@ public struct MCPServerHandler: Sendable {
             let externalRef = args["externalRef"] as? String
 
             do {
+                let stamp = TasksDateHelper.noteTimestampString()
                 let item = try TasksStore.mutateStateOnDisk(at: storageURL) { state in
+                    let nowParts = TasksDateHelper.currentDateParts()
+                    state.todayISO = nowParts.todayISO
                     let created = TaskItem(
                         id: "t-mcp-\(Int(Date().timeIntervalSince1970 * 1000))-\(Int.random(in: 100...999))",
                         title: title,
                         context: context,
                         effort: effort,
                         notes: notes,
-                        previousNotes: notes.isEmpty ? [] : [TaskNote(date: "Via MCP", text: notes)],
+                        previousNotes: notes.isEmpty ? [] : [TaskNote(date: stamp, text: notes)],
                         lastSurfacedAt: state.todayISO,
                         source: source,
                         externalRef: externalRef
@@ -163,7 +166,13 @@ public struct MCPServerHandler: Sendable {
             }
 
         case "list_drawn_tasks":
-            let state = TasksStore.loadState(from: storageURL) ?? TasksState()
+            var state = TasksStore.loadState(from: storageURL) ?? TasksState()
+            let nowParts = TasksDateHelper.currentDateParts()
+            if state.todayISO != nowParts.todayISO {
+                state.todayISO = nowParts.todayISO
+                state.currentMonth = nowParts.month
+                state.currentSeason = nowParts.season
+            }
             let life = DrawEngine.computeLifeDraw(
                 tasks: state.tasks,
                 existingDraw: state.weeklyDraw,
@@ -224,13 +233,14 @@ public struct MCPServerHandler: Sendable {
                 return textResult("Task matching '\(query)' not found.", isError: true)
             }
             do {
+                let stamp = TasksDateHelper.noteTimestampString()
                 let matchedTitle: String? = try TasksStore.mutateStateOnDisk(at: storageURL) { state in
                     guard let idx = state.tasks.firstIndex(where: {
                         !$0.isDeleted && ($0.id.lowercased() == query || $0.title.lowercased().contains(query))
                     }) else {
                         return nil
                     }
-                    state.tasks[idx].previousNotes.insert(TaskNote(date: "Via MCP", text: note), at: 0)
+                    state.tasks[idx].previousNotes.insert(TaskNote(date: stamp, text: note), at: 0)
                     state.tasks[idx].updatedAt = Date()
                     return state.tasks[idx].title
                 }

@@ -39,7 +39,7 @@ public actor CloudKitSyncManager {
     }
 
     public func pushTasks(_ tasks: [TaskItem]) async {
-        guard isCloudKitEnabled else { return }
+        guard isCloudKitEnabled, !tasks.isEmpty else { return }
         #if canImport(CloudKit)
         do {
             let container = CKContainer(identifier: Self.containerIdentifier)
@@ -47,9 +47,26 @@ public actor CloudKitSyncManager {
             let zoneID = CKRecordZone.ID(zoneName: Self.zoneName, ownerName: CKCurrentUserDefaultName)
             _ = try? await db.modifyRecordZones(saving: [CKRecordZone(zoneID: zoneID)], deleting: [])
 
-            let records = try tasks.map { try Self.encodeRecord($0, zoneID: zoneID) }
-            _ = try await db.modifyRecords(saving: records, deleting: [], savePolicy: .changedKeys)
-            lastSyncStatus = "Synced \(records.count) tasks to iCloud"
+            let recordIDs = tasks.map { CKRecord.ID(recordName: $0.id, zoneID: zoneID) }
+            let existingResults = (try? await db.records(for: recordIDs)) ?? [:]
+            var recordsToSave: [CKRecord] = []
+
+            for item in tasks {
+                let recordID = CKRecord.ID(recordName: item.id, zoneID: zoneID)
+                if let result = existingResults[recordID], case .success(let existingRecord) = result {
+                    let remoteUpdated = (existingRecord["updatedAt"] as? Date) ?? .distantPast
+                    guard item.updatedAt > remoteUpdated else { continue }
+                    try Self.populateRecord(existingRecord, with: item)
+                    recordsToSave.append(existingRecord)
+                } else {
+                    recordsToSave.append(try Self.encodeRecord(item, zoneID: zoneID))
+                }
+            }
+
+            if !recordsToSave.isEmpty {
+                _ = try await db.modifyRecords(saving: recordsToSave, deleting: [], savePolicy: .ifServerRecordUnchanged)
+            }
+            lastSyncStatus = "Synced \(recordsToSave.count) tasks to iCloud"
         } catch {
             lastSyncStatus = "Local App Group synced (iCloud: \(error.localizedDescription))"
         }
@@ -91,6 +108,11 @@ public actor CloudKitSyncManager {
     public static func encodeRecord(_ item: TaskItem, zoneID: CKRecordZone.ID) throws -> CKRecord {
         let recordID = CKRecord.ID(recordName: item.id, zoneID: zoneID)
         let record = CKRecord(recordType: Self.recordType, recordID: recordID)
+        try populateRecord(record, with: item)
+        return record
+    }
+
+    public static func populateRecord(_ record: CKRecord, with item: TaskItem) throws {
         let data = try JSONEncoder.tasksEncoder.encode(item)
         record["payloadJSON"] = String(data: data, encoding: .utf8) as CKRecordValue?
         record["title"] = item.title as CKRecordValue
@@ -99,7 +121,6 @@ public actor CloudKitSyncManager {
         record["status"] = item.status.rawValue as CKRecordValue
         record["updatedAt"] = item.updatedAt as CKRecordValue
         record["isDeleted"] = (item.isDeleted ? 1 : 0) as CKRecordValue
-        return record
     }
 
     public static func decodeRecord(_ record: CKRecord) -> TaskItem? {

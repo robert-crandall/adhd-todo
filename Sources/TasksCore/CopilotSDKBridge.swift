@@ -124,7 +124,7 @@ public enum CopilotSDKBridge {
                 TaskStep(text: "Clear leaves from the front downspout corner only (8m)"),
                 TaskStep(text: "Flush downspout with garden hose to confirm flow (3m)")
             ]
-        } else if lower.contains("pr") || lower.contains("review") {
+        } else if lower.range(of: #"\b(prs?|reviews?)\b"#, options: .regularExpression) != nil {
             return [
                 TaskStep(text: "Open PR diff and read the summary & test plan (2m)"),
                 TaskStep(text: "Check changed files for edge cases or regressions (5m)"),
@@ -186,12 +186,12 @@ public enum CopilotSDKBridge {
         proc.arguments = ["copilot", "-p", prompt]
         let out = Pipe()
         proc.standardOutput = out
-        proc.standardError = Pipe()
+        proc.standardError = FileHandle.nullDevice
         do {
             try proc.run()
+            let data = out.fileHandleForReading.readDataToEndOfFile()
             proc.waitUntilExit()
             guard proc.terminationStatus == 0 else { return nil }
-            let data = out.fileHandleForReading.readDataToEndOfFile()
             return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
         } catch {
             return nil

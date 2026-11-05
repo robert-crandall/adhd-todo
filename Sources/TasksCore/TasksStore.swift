@@ -27,12 +27,13 @@ public final class TasksStore: ObservableObject {
             enableCloudKit: enableCloudKit ?? CloudKitSyncManager.hasCloudKitEntitlementInCurrentProcess()
         )
 
-        if let loaded = Self.loadState(from: resolvedURL) {
-            self.state = Self.reconcileDraws(loaded)
+        if let loaded = try? Self.mutateStateOnDisk(at: resolvedURL, { disk in
+            disk = Self.reconcileDraws(disk)
+            return disk
+        }) {
+            self.state = loaded
         } else {
-            let initial = Self.reconcileDraws(TasksState())
-            self.state = initial
-            Self.saveState(initial, to: resolvedURL)
+            self.state = Self.reconcileDraws(TasksState())
         }
 
         registerDarwinObserver()
@@ -167,6 +168,12 @@ public final class TasksStore: ObservableObject {
 
     private static func reconcileDraws(_ input: TasksState) -> TasksState {
         var next = input
+        let nowParts = TasksDateHelper.currentDateParts()
+        if nowParts.todayISO != next.todayISO {
+            next.todayISO = nowParts.todayISO
+            next.currentMonth = nowParts.month
+            next.currentSeason = nowParts.season
+        }
         let life = DrawEngine.computeLifeDraw(
             tasks: next.tasks,
             existingDraw: next.weeklyDraw,
@@ -190,26 +197,29 @@ public final class TasksStore: ObservableObject {
     }
 
     private func commit(_ mutation: (inout TasksState) -> Void, logMessage: String? = nil) {
-        var next = state
-        mutation(&next)
-        if let logMessage {
-            let stamp = Self.shortTimeString()
-            next.activityLog.insert("\(stamp)  \(logMessage)", at: 0)
-            if next.activityLog.count > 40 {
-                next.activityLog = Array(next.activityLog.prefix(40))
-            }
-        }
-        next = Self.reconcileDraws(next)
-        state = next
         suppressDarwinPost = true
-        Self.saveState(next, to: storageURL)
-        Self.postDarwinNotification()
-        suppressDarwinPost = false
-
-        let tasksSnapshot = next.tasks
-        Task {
-            await cloudKit.pushTasks(tasksSnapshot)
-            self.syncStatus = await cloudKit.statusSummary()
+        defer { suppressDarwinPost = false }
+        do {
+            let persisted = try Self.mutateStateOnDisk(at: storageURL) { next in
+                mutation(&next)
+                if let logMessage {
+                    let stamp = Self.shortTimeString()
+                    next.activityLog.insert("\(stamp)  \(logMessage)", at: 0)
+                    if next.activityLog.count > 40 {
+                        next.activityLog = Array(next.activityLog.prefix(40))
+                    }
+                }
+                next = Self.reconcileDraws(next)
+                return next
+            }
+            state = persisted
+            let tasksSnapshot = persisted.tasks
+            Task {
+                await cloudKit.pushTasks(tasksSnapshot)
+                self.syncStatus = await cloudKit.statusSummary()
+            }
+        } catch {
+            syncStatus = "Save failed: \(error.localizedDescription)"
         }
     }
 
@@ -266,7 +276,8 @@ public final class TasksStore: ObservableObject {
 
     public var oneThingTask: TaskItem? {
         if let pinned = state.tasks.first(where: {
-            $0.status == .active && !$0.isDeleted && $0.oneThing && (state.workHoursOn || $0.pool == .life)
+            $0.oneThing && (state.workHoursOn || $0.pool == .life)
+                && DrawEngine.isEligible($0, month: state.currentMonth, season: state.currentSeason, todayISO: state.todayISO)
         }) {
             return pinned
         }
@@ -356,6 +367,7 @@ public final class TasksStore: ObservableObject {
             guard let idx = st.tasks.firstIndex(where: { $0.id == taskId }) else { return }
             st.tasks[idx].cooldownUntil = TasksDateHelper.addDays(to: st.todayISO, days: 4)
             st.tasks[idx].lastSurfacedAt = st.todayISO
+            st.tasks[idx].oneThing = false
             st.tasks[idx].updatedAt = Date()
             if st.weeklyDraw.quickId == taskId { st.weeklyDraw.quickId = nil }
             if st.weeklyDraw.mediumId == taskId { st.weeklyDraw.mediumId = nil }
@@ -370,6 +382,7 @@ public final class TasksStore: ObservableObject {
                 if let idx = st.tasks.firstIndex(where: { $0.id == id }) {
                     st.tasks[idx].cooldownUntil = nextCooldown
                     st.tasks[idx].lastSurfacedAt = st.todayISO
+                    st.tasks[idx].oneThing = false
                     st.tasks[idx].updatedAt = Date()
                 }
             }
@@ -383,19 +396,21 @@ public final class TasksStore: ObservableObject {
             guard let idx = st.tasks.firstIndex(where: { $0.id == taskId }) else { return }
             let resolvedUntil = untilISO ?? TasksDateHelper.addDays(to: st.todayISO, days: 7)
             st.tasks[idx].snoozedUntil = resolvedUntil
+            st.tasks[idx].oneThing = false
             st.tasks[idx].updatedAt = Date()
             if st.weeklyDraw.quickId == taskId { st.weeklyDraw.quickId = nil }
             if st.weeklyDraw.mediumId == taskId { st.weeklyDraw.mediumId = nil }
         }, logMessage: "[Snooze] Hid \"\(title)\" for 1 week")
     }
 
-    public func addSelfNote(taskId: String, text: String, dateLabel: String = "Just now") {
+    public func addSelfNote(taskId: String, text: String, dateLabel: String? = nil) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty,
               let title = state.tasks.first(where: { $0.id == taskId })?.title else { return }
+        let resolvedLabel = dateLabel ?? TasksDateHelper.noteTimestampString()
         commit({ st in
             guard let idx = st.tasks.firstIndex(where: { $0.id == taskId }) else { return }
-            st.tasks[idx].previousNotes.insert(TaskNote(date: dateLabel, text: trimmed), at: 0)
+            st.tasks[idx].previousNotes.insert(TaskNote(date: resolvedLabel, text: trimmed), at: 0)
             st.tasks[idx].updatedAt = Date()
         }, logMessage: "[Self Note] Saved note on \"\(title)\"")
     }
@@ -411,9 +426,14 @@ public final class TasksStore: ObservableObject {
 
     public func pinAsOneThing(_ taskId: String) {
         guard let title = state.tasks.first(where: { $0.id == taskId })?.title else { return }
+        let now = Date()
         commit({ st in
             for i in st.tasks.indices {
-                st.tasks[i].oneThing = (st.tasks[i].id == taskId)
+                let shouldPin = (st.tasks[i].id == taskId)
+                if st.tasks[i].oneThing != shouldPin {
+                    st.tasks[i].oneThing = shouldPin
+                    st.tasks[i].updatedAt = now
+                }
             }
             if let idx = st.tasks.firstIndex(where: { $0.id == taskId }), st.tasks[idx].pool == .life {
                 st.weeklyDraw.quickId = taskId
